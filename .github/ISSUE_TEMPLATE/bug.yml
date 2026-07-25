@@ -1,0 +1,54 @@
+name: Bug report
+description: Report a reproducible extension problem
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include API keys, private prompts, responses, images, or tool data.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and use the latest version.
+          required: true
+  - type: input
+    id: extension-version
+    attributes:
+      label: Extension version
+    validations:
+      required: true
+  - type: input
+    id: vscode-version
+    attributes:
+      label: VS Code version
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Operating system and environment
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Ollama Cloud model
+  - type: textarea
+    id: description
+    attributes:
+      label: Problem
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Sanitized diagnostics
+      render: text

@@ -1,0 +1,147 @@
+{
+  "name": "ollama-cloud-copilot-chat",
+  "displayName": "Ollama Cloud for GitHub Copilot Chat",
+  "description": "Use Ollama Cloud models in GitHub Copilot Chat with accurate context, modality, tool, and thinking metadata.",
+  "version": "0.0.1",
+  "publisher": "grikomsn",
+  "icon": "assets/icon.png",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/grikomsn/ollama-cloud-copilot-chat.git"
+  },
+  "bugs": {
+    "url": "https://github.com/grikomsn/ollama-cloud-copilot-chat/issues"
+  },
+  "homepage": "https://github.com/grikomsn/ollama-cloud-copilot-chat#readme",
+  "engines": {
+    "vscode": "^1.125.0"
+  },
+  "categories": [
+    "AI",
+    "Chat",
+    "Machine Learning"
+  ],
+  "keywords": [
+    "ollama",
+    "ollama-cloud",
+    "copilot",
+    "copilot-chat",
+    "language-model",
+    "api-key",
+    "reasoning",
+    "vision"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onLanguageModelChatProvider:ollama-cloud"
+  ],
+  "main": "./out/extension.js",
+  "galleryBanner": {
+    "color": "#111111",
+    "theme": "dark"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "ollamaCloudCopilot.manage",
+        "title": "Ollama Cloud: Manage Connection"
+      },
+      {
+        "command": "ollamaCloudCopilot.configureApiKey",
+        "title": "Ollama Cloud: Configure API Key"
+      },
+      {
+        "command": "ollamaCloudCopilot.removeApiKey",
+        "title": "Ollama Cloud: Remove API Key"
+      },
+      {
+        "command": "ollamaCloudCopilot.refreshModels",
+        "title": "Ollama Cloud: Refresh Models"
+      },
+      {
+        "command": "ollamaCloudCopilot.testConnection",
+        "title": "Ollama Cloud: Test Inference"
+      },
+      {
+        "command": "ollamaCloudCopilot.openApiKeys",
+        "title": "Ollama Cloud: Open API Keys"
+      },
+      {
+        "command": "ollamaCloudCopilot.showUsage",
+        "title": "Ollama Cloud: Show Subscription Usage"
+      },
+      {
+        "command": "ollamaCloudCopilot.openUsage",
+        "title": "Ollama Cloud: Open Account Usage"
+      },
+      {
+        "command": "ollamaCloudCopilot.diagnostics",
+        "title": "Ollama Cloud: Show Diagnostics"
+      }
+    ],
+    "configuration": {
+      "title": "Ollama Cloud for Copilot Chat",
+      "properties": {
+        "ollamaCloudCopilot.maxOutputTokens": {
+          "type": "number",
+          "default": 32768,
+          "minimum": 1,
+          "maximum": 262144,
+          "description": "Maximum output tokens requested from Ollama Cloud. The selected model's context window remains the upper bound."
+        },
+        "ollamaCloudCopilot.requestTimeoutSeconds": {
+          "type": "number",
+          "default": 600,
+          "minimum": 10,
+          "description": "Maximum duration of an Ollama Cloud inference request in seconds."
+        },
+        "ollamaCloudCopilot.catalogCacheMinutes": {
+          "type": "number",
+          "default": 30,
+          "minimum": 1,
+          "description": "How long dynamically discovered Ollama Cloud model metadata is reused before refreshing."
+        },
+        "ollamaCloudCopilot.showUsageStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show exact Ollama Cloud session and weekly subscription usage in the VS Code status bar."
+        },
+        "ollamaCloudCopilot.debugLogging": {
+          "type": "boolean",
+          "default": false,
+          "description": "Log request, discovery, and usage metadata. API keys, prompts, responses, and tool data are never logged."
+        }
+      }
+    },
+    "languageModelChatProviders": [
+      {
+        "vendor": "ollama-cloud",
+        "displayName": "Ollama Cloud",
+        "managementCommand": "ollamaCloudCopilot.manage"
+      }
+    ]
+  },
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('out',{recursive:true,force:true})\"",
+    "compile": "npm run clean && tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "npm run compile && node --test \"out/**/*.test.js\"",
+    "test:vscode": "npm run compile && node test/run-vscode.mjs",
+    "check": "npm test",
+    "changeset": "changeset",
+    "version": "changeset version",
+    "release": "npm run check && vsce publish --skip-duplicate",
+    "prepackage": "npm run check",
+    "package": "vsce package",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.31.0",
+    "@types/node": "^24.0.0",
+    "@types/vscode": "^1.125.0",
+    "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.9.2",
+    "typescript": "^6.0.3"
+  }
+}
