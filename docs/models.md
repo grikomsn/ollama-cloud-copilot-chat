@@ -4,10 +4,11 @@
 
 The extension discovers the catalog available to the configured account and enriches each entry with authenticated `/api/show` metadata. Live responses provide the context window, architecture, parameter size, quantization, and capabilities used by Copilot Chat. A bundled snapshot keeps model selection useful during transient metadata failures.
 
-The fallback snapshot was last updated on 2026-07-25:
+The fallback snapshot was last updated on 2026-07-28:
 
 | Model | Context | Images | Tools | Thinking |
 | --- | ---: | :---: | :---: | :---: |
+| Kimi K3 | 1.049M | Yes | Yes | Effort |
 | Kimi K2.7 Code | 262K | Yes | Yes | Effort |
 | GLM 5.2 | 1M | No | Yes | Effort |
 | MiniMax M3 | 524K | Yes | Yes | Effort |
@@ -28,6 +29,8 @@ The fallback snapshot was last updated on 2026-07-25:
 | MiniMax M2.5 | 197K | No | Yes | Effort |
 
 Live catalog and `/api/show` results remain authoritative when they differ from this snapshot. Ollama has announced that Kimi K2.5 and MiniMax M2.5 retire on 2026-07-31; the extension keeps them visible while the account catalog still returns them and marks the date in their tooltips. See [Cloud model retirements](https://docs.ollama.com/cloud#retirements).
+
+Kimi K3 currently requires an Ollama Pro or Max subscription and consumes extra usage credits. See [Kimi K3 on Ollama](https://ollama.com/library/kimi-k3).
 
 ## Thinking
 

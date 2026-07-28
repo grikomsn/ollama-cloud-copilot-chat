@@ -22,7 +22,15 @@ class MemoryCache implements CatalogCache {
 
 test("fallback catalog includes current cloud models and rich capabilities", () => {
   const models = fallbackModels();
-  assert.equal(models.length, 18);
+  assert.equal(models.length, 19);
+  const kimi = models.find((model) => model.id === "kimi-k3");
+  assert.equal(kimi?.contextLength, 1048576);
+  assert.equal(kimi?.maxOutputTokens, 262144);
+  assert.deepEqual(kimi?.capabilities, {
+    imageInput: true,
+    toolCalling: true,
+    thinking: true,
+  });
   const gemma = models.find((model) => model.id === "gemma4:31b");
   assert.equal(gemma?.contextLength, 262144);
   assert.deepEqual(gemma?.capabilities, {

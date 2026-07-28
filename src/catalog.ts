@@ -57,6 +57,7 @@ export type Fetch = (input: string | URL | Request, init?: RequestInit) => Promi
 // This snapshot keeps the picker useful before authentication and records
 // output ceilings that /api/show does not currently publish.
 const SNAPSHOT: readonly SnapshotModel[] = [
+  { id: "kimi-k3", contextLength: 1048576, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
   { id: "kimi-k2.7-code", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
   { id: "glm-5.2", contextLength: 1000000, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
   { id: "minimax-m3", contextLength: 524288, maxOutputTokens: 131072, capabilities: "vision thinking completion tools" },
