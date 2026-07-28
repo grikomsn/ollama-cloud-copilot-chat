@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+### Patch Changes
+
+- 1bfb138: Add Kimi K3 to the bundled Ollama Cloud model metadata snapshot with its 1M context window, vision, tool, and thinking capabilities.
+
 ## 0.1.0
 
 ### Minor Changes
