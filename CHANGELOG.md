@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2
+
+### Patch Changes
+
+- 5f12424: Refresh the bundled Ollama Cloud metadata with DeepSeek V4 Flash 0731 and remove the retired Kimi K2.5 and MiniMax M2.5 models.
+
 ## 0.1.1
 
 ### Patch Changes
