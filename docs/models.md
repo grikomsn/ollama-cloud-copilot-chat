@@ -4,10 +4,11 @@
 
 The extension discovers the catalog available to the configured account and enriches each entry with authenticated `/api/show` metadata. Live responses provide the context window, architecture, parameter size, quantization, and capabilities used by Copilot Chat. A bundled snapshot keeps model selection useful during transient metadata failures.
 
-The fallback snapshot was last updated on 2026-07-28:
+The fallback snapshot was last updated on 2026-08-01:
 
 | Model | Context | Images | Tools | Thinking |
 | --- | ---: | :---: | :---: | :---: |
+| DeepSeek V4 Flash 0731 | 1.049M | No | Yes | Effort |
 | Kimi K3 | 1.049M | Yes | Yes | Effort |
 | Kimi K2.7 Code | 262K | Yes | Yes | Effort |
 | GLM 5.2 | 1M | No | Yes | Effort |
@@ -25,10 +26,8 @@ The fallback snapshot was last updated on 2026-07-28:
 | Mistral Large 3 675B | 262K | Yes | Yes | No |
 | GPT-OSS 120B | 131K | No | Yes | Low / Medium / High |
 | GPT-OSS 20B | 131K | No | Yes | Low / Medium / High |
-| Kimi K2.5 | 262K | Yes | Yes | Effort |
-| MiniMax M2.5 | 197K | No | Yes | Effort |
 
-Live catalog and `/api/show` results remain authoritative when they differ from this snapshot. Ollama has announced that Kimi K2.5 and MiniMax M2.5 retire on 2026-07-31; the extension keeps them visible while the account catalog still returns them and marks the date in their tooltips. See [Cloud model retirements](https://docs.ollama.com/cloud#retirements).
+Live catalog and `/api/show` results remain authoritative when they differ from this snapshot. Kimi K2.5 and MiniMax M2.5 were removed from the fallback after their 2026-07-31 retirement. See [Cloud model retirements](https://docs.ollama.com/cloud#retirements).
 
 Kimi K3 currently requires an Ollama Pro or Max subscription and consumes extra usage credits. See [Kimi K3 on Ollama](https://ollama.com/library/kimi-k3).
 

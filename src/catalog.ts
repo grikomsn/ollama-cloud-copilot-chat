@@ -57,6 +57,7 @@ export type Fetch = (input: string | URL | Request, init?: RequestInit) => Promi
 // This snapshot keeps the picker useful before authentication and records
 // output ceilings that /api/show does not currently publish.
 const SNAPSHOT: readonly SnapshotModel[] = [
+  { id: "deepseek-v4-flash:0731", contextLength: 1048576, maxOutputTokens: 384000, capabilities: "thinking completion tools" },
   { id: "kimi-k3", contextLength: 1048576, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
   { id: "kimi-k2.7-code", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
   { id: "glm-5.2", contextLength: 1000000, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
@@ -74,8 +75,6 @@ const SNAPSHOT: readonly SnapshotModel[] = [
   { id: "mistral-large-3:675b", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision completion tools" },
   { id: "gpt-oss:120b", contextLength: 131072, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
   { id: "gpt-oss:20b", contextLength: 131072, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
-  { id: "kimi-k2.5", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools", retirementDate: "2026-07-31" },
-  { id: "minimax-m2.5", contextLength: 196608, maxOutputTokens: 131072, capabilities: "thinking completion tools", retirementDate: "2026-07-31" },
 ];
 
 const SNAPSHOT_BY_ID = new Map(SNAPSHOT.map((model) => [model.id, model]));
