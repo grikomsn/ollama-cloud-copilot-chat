@@ -26,6 +26,11 @@ export interface OllamaTool {
   };
 }
 
+export interface MessageMetrics {
+  readonly textChars: number;
+  readonly imageCount: number;
+}
+
 export function convertMessages(
   messages: readonly vscode.LanguageModelChatRequestMessage[],
 ): OllamaMessage[] {
@@ -53,11 +58,17 @@ export function convertTools(
   }));
 }
 
-export function messageText(
+export function messageMetrics(
   input: string | vscode.LanguageModelChatRequestMessage,
-): string {
-  if (typeof input === "string") return input;
-  return input.content.map(partText).join("\n");
+): MessageMetrics {
+  if (typeof input === "string") return { textChars: input.length, imageCount: 0 };
+  return input.content.reduce<MessageMetrics>((total, part) => {
+    const metrics = partMetrics(part);
+    return {
+      textChars: total.textChars + metrics.textChars,
+      imageCount: total.imageCount + metrics.imageCount,
+    };
+  }, { textChars: 0, imageCount: 0 });
 }
 
 function convertMessage(
@@ -139,6 +150,22 @@ function partText(part: vscode.LanguageModelInputPart | unknown): string {
   }
   if (typeof part === "string") return part;
   return "";
+}
+
+function partMetrics(part: vscode.LanguageModelInputPart | unknown): MessageMetrics {
+  if (part instanceof vscode.LanguageModelDataPart && part.mimeType.startsWith("image/")) {
+    return { textChars: 0, imageCount: 1 };
+  }
+  if (part instanceof vscode.LanguageModelToolResultPart) {
+    return part.content.reduce<MessageMetrics>((total, nested) => {
+      const metrics = partMetrics(nested);
+      return {
+        textChars: total.textChars + metrics.textChars,
+        imageCount: total.imageCount + metrics.imageCount,
+      };
+    }, { textChars: 0, imageCount: 0 });
+  }
+  return { textChars: partText(part).length, imageCount: 0 };
 }
 
 function isThinkingPart(value: unknown): value is { value: string | string[] } {

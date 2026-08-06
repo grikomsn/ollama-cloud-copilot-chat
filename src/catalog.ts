@@ -64,7 +64,7 @@ const SNAPSHOT: readonly SnapshotModel[] = [
   { id: "minimax-m3", contextLength: 524288, maxOutputTokens: 131072, capabilities: "vision thinking completion tools" },
   { id: "nemotron-3-ultra", contextLength: 262144, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
   { id: "deepseek-v4-pro", contextLength: 524288, maxOutputTokens: 384000, capabilities: "thinking completion tools" },
-  { id: "deepseek-v4-flash", contextLength: 1048576, maxOutputTokens: 384000, capabilities: "thinking completion tools" },
+  { id: "deepseek-v4-flash:preview", contextLength: 1048576, maxOutputTokens: 384000, capabilities: "thinking completion tools" },
   { id: "gemma4:31b", contextLength: 262144, maxOutputTokens: 128000, capabilities: "vision thinking completion tools" },
   { id: "qwen3.5:397b", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
   { id: "kimi-k2.6", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
@@ -264,7 +264,7 @@ function unknownSnapshot(id: string): SnapshotModel {
     id,
     contextLength: 32768,
     maxOutputTokens: 32768,
-    capabilities: "completion tools",
+    capabilities: "completion",
   };
 }
 

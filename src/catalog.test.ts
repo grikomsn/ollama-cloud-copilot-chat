@@ -33,6 +33,8 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
   });
   assert.equal(models.some((model) => model.id === "kimi-k2.5"), false);
   assert.equal(models.some((model) => model.id === "minimax-m2.5"), false);
+  assert.equal(models.some((model) => model.id === "deepseek-v4-flash"), false);
+  assert.equal(models.some((model) => model.id === "deepseek-v4-flash:preview"), true);
   const kimi = models.find((model) => model.id === "kimi-k3");
   assert.equal(kimi?.contextLength, 1048576);
   assert.equal(kimi?.maxOutputTokens, 262144);
@@ -120,7 +122,20 @@ test("falls back per model when show hydration fails", async () => {
   assert.equal(models[0].capabilities.thinking, true);
 });
 
+test("does not infer tools or thinking when metadata for an unknown model fails", async () => {
+  const catalog = new ModelCatalog(new MemoryCache(), async (input) => {
+    if (String(input).endsWith("/tags")) return Response.json({ models: [{ name: "unknown-model" }] });
+    return new Response("unavailable", { status: 503 });
+  });
+  const models = await catalog.refresh("not-logged");
+  assert.deepEqual(models[0].capabilities, {
+    imageInput: false,
+    toolCalling: false,
+    thinking: false,
+  });
+});
+
 test("formats model identifiers for the picker", () => {
   assert.equal(humanizeModelId("gpt-oss:120b"), "GPT OSS 120B");
-  assert.equal(humanizeModelId("deepseek-v4-flash"), "DeepSeek V4 Flash");
+  assert.equal(humanizeModelId("deepseek-v4-flash:preview"), "DeepSeek V4 Flash Preview");
 });
