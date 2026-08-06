@@ -30,7 +30,7 @@ ceiling, initiator, and token counts. The extension never intentionally logs:
 ## Untrusted data
 
 Catalog and stream payloads are parsed defensively. Malformed catalog metadata
-falls back to a bundled snapshot. Malformed stream lines are ignored without
-executing content. Tool calls are emitted to Copilot as structured requests;
+falls back to a bundled snapshot. Malformed stream lines fail the request rather
+than turning a truncated response into apparent success. Tool calls are emitted to Copilot as structured requests;
 the extension does not execute tools itself. Malformed usage responses preserve
 the last successful account snapshot and record a secret-safe refresh error.

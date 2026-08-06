@@ -37,8 +37,8 @@ The key is validated against the hosted catalog and stored in VS Code Secret Sto
 
 | Setting | Default | Purpose |
 | --- | ---: | --- |
-| `ollamaCloudCopilot.maxOutputTokens` | `32768` | Requested generation ceiling, capped by the selected model |
-| `ollamaCloudCopilot.requestTimeoutSeconds` | `600` | Inference timeout in seconds |
+| `ollamaCloudCopilot.maxOutputTokens` | `65536` | Requested generation ceiling, capped by the selected model and remaining context |
+| `ollamaCloudCopilot.requestTimeoutSeconds` | `600` | Maximum seconds without response data before a request is aborted |
 | `ollamaCloudCopilot.catalogCacheMinutes` | `30` | Model metadata refresh interval |
 | `ollamaCloudCopilot.showUsageStatusBar` | `true` | Show five-hour and weekly subscription usage |
 | `ollamaCloudCopilot.debugLogging` | `false` | Log secret-safe request, discovery, and usage metadata |
@@ -53,13 +53,13 @@ Account utilization comes from Ollama's bearer-authenticated `/api/usage` respon
 
 ## Thinking effort
 
-Thinking-capable models expose a native control in the model picker. GPT-OSS offers Low, Medium, and High. MiniMax models offer Low through Max because the hosted backend keeps their reasoning enabled. Other thinking models can offer Off, Low, Medium, High, and Max. The picker selection applies to that request through Ollama's native `think` field.
+Thinking controls appear only where the accepted native values are known. GPT-OSS offers Low, Medium, and High; Kimi K3 offers Off, Low, High, and Max; GLM 5.2 and DeepSeek V4 offer Off, High, and Max. Verified boolean models offer On and Off. MiniMax remains model-managed because Ollama Cloud does not honor its disable value. The picker selection applies to that request through Ollama's native `think` field.
 
 ## Troubleshooting
 
 - **No Ollama Cloud models in the picker:** enable **Ollama Cloud** under **Manage Models**, then run **Ollama Cloud: Refresh Models**.
 - **The API key is rejected:** create a fresh key and run **Ollama Cloud: Configure API Key** again.
-- **A request times out:** increase `ollamaCloudCopilot.requestTimeoutSeconds`; agentic requests can run longer than ordinary chat.
+- **A request times out:** increase `ollamaCloudCopilot.requestTimeoutSeconds` if Ollama Cloud can remain silent for longer between streamed chunks.
 - **An image is rejected:** refresh models and confirm the selected model's tooltip says `text + images`.
 - **Usage cannot refresh:** click the status item to retry. The last successful snapshot remains visible with a warning.
 - **Need a diagnostic snapshot:** run **Ollama Cloud: Show Diagnostics** and include the generated report when filing an issue.

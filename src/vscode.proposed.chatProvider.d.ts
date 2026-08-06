@@ -6,7 +6,6 @@ declare module "vscode" {
 
   export interface LanguageModelChatInformation {
     readonly requiresAuthorization?: true | { label: string };
-    readonly pricing?: string;
     readonly isUserSelectable?: boolean;
     readonly configurationSchema?: LanguageModelConfigurationSchema;
     readonly targetChatSessionType?: string;
@@ -23,11 +22,10 @@ declare module "vscode" {
     | LanguageModelThinkingPart;
 
   export type LanguageModelConfigurationSchema = {
-    readonly type?: string;
+    readonly type?: "object";
     readonly properties?: {
       readonly [key: string]: Record<string, unknown> & {
         readonly enumItemLabels?: string[];
-        readonly enumDescriptions?: string[];
         readonly group?: string;
       };
     };
@@ -47,5 +45,9 @@ declare module "vscode" {
       progress: Progress<LanguageModelResponsePart2>,
       token: CancellationToken,
     ): Thenable<void>;
+  }
+
+  export interface PrepareLanguageModelChatModelOptions {
+    readonly configuration?: { readonly [key: string]: unknown };
   }
 }

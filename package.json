@@ -85,16 +85,16 @@
       "properties": {
         "ollamaCloudCopilot.maxOutputTokens": {
           "type": "number",
-          "default": 32768,
+          "default": 65536,
           "minimum": 1,
-          "maximum": 262144,
+          "maximum": 384000,
           "description": "Maximum output tokens requested from Ollama Cloud. The selected model's context window remains the upper bound."
         },
         "ollamaCloudCopilot.requestTimeoutSeconds": {
           "type": "number",
           "default": 600,
           "minimum": 10,
-          "description": "Maximum duration of an Ollama Cloud inference request in seconds."
+          "description": "Maximum time to wait without receiving Ollama Cloud response data before aborting a request."
         },
         "ollamaCloudCopilot.catalogCacheMinutes": {
           "type": "number",

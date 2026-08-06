@@ -6,7 +6,7 @@ export interface OllamaMessage {
   readonly thinking?: string;
   readonly images?: readonly string[];
   readonly tool_calls?: readonly OllamaRequestToolCall[];
-  readonly tool_call_id?: string;
+  readonly tool_name?: string;
 }
 
 export interface OllamaRequestToolCall {
@@ -26,10 +26,23 @@ export interface OllamaTool {
   };
 }
 
+export interface MessageMetrics {
+  readonly textChars: number;
+  readonly imageCount: number;
+}
+
 export function convertMessages(
   messages: readonly vscode.LanguageModelChatRequestMessage[],
 ): OllamaMessage[] {
-  return messages.flatMap(convertMessage);
+  const toolNames = new Map<string, string>();
+  for (const message of messages) {
+    for (const part of message.content) {
+      if (part instanceof vscode.LanguageModelToolCallPart) {
+        toolNames.set(part.callId, part.name);
+      }
+    }
+  }
+  return messages.flatMap((message) => convertMessage(message, toolNames));
 }
 
 export function convertTools(
@@ -45,14 +58,23 @@ export function convertTools(
   }));
 }
 
-export function messageText(
+export function messageMetrics(
   input: string | vscode.LanguageModelChatRequestMessage,
-): string {
-  if (typeof input === "string") return input;
-  return input.content.map(partText).join("\n");
+): MessageMetrics {
+  if (typeof input === "string") return { textChars: input.length, imageCount: 0 };
+  return input.content.reduce<MessageMetrics>((total, part) => {
+    const metrics = partMetrics(part);
+    return {
+      textChars: total.textChars + metrics.textChars,
+      imageCount: total.imageCount + metrics.imageCount,
+    };
+  }, { textChars: 0, imageCount: 0 });
 }
 
-function convertMessage(message: vscode.LanguageModelChatRequestMessage): OllamaMessage[] {
+function convertMessage(
+  message: vscode.LanguageModelChatRequestMessage,
+  toolNames: ReadonlyMap<string, string>,
+): OllamaMessage[] {
   const text: string[] = [];
   const thinking: string[] = [];
   const images: string[] = [];
@@ -80,10 +102,14 @@ function convertMessage(message: vscode.LanguageModelChatRequestMessage): Ollama
         },
       });
     } else if (part instanceof vscode.LanguageModelToolResultPart) {
+      const toolName = toolNames.get(part.callId);
+      if (!toolName) {
+        throw new Error(`Cannot map tool result ${part.callId} to an Ollama tool name`);
+      }
       toolResults.push({
         role: "tool",
         content: part.content.map(partText).filter(Boolean).join("\n"),
-        tool_call_id: part.callId,
+        tool_name: toolName,
       });
     }
   }
@@ -112,11 +138,34 @@ function role(value: vscode.LanguageModelChatMessageRole): OllamaMessage["role"]
 function partText(part: vscode.LanguageModelInputPart | unknown): string {
   if (part instanceof vscode.LanguageModelTextPart) return part.value;
   if (isThinkingPart(part)) return Array.isArray(part.value) ? part.value.join("\n") : part.value;
-  if (part instanceof vscode.LanguageModelDataPart && part.mimeType.startsWith("text/")) {
-    return new TextDecoder().decode(part.data);
+  if (part instanceof vscode.LanguageModelDataPart) {
+    if (part.mimeType.startsWith("text/")) return new TextDecoder().decode(part.data);
+    if (part.mimeType.startsWith("image/")) return Buffer.from(part.data).toString("base64");
+  }
+  if (part instanceof vscode.LanguageModelToolCallPart) {
+    return `${part.name}\n${JSON.stringify(part.input ?? {})}`;
+  }
+  if (part instanceof vscode.LanguageModelToolResultPart) {
+    return part.content.map(partText).join("\n");
   }
   if (typeof part === "string") return part;
   return "";
+}
+
+function partMetrics(part: vscode.LanguageModelInputPart | unknown): MessageMetrics {
+  if (part instanceof vscode.LanguageModelDataPart && part.mimeType.startsWith("image/")) {
+    return { textChars: 0, imageCount: 1 };
+  }
+  if (part instanceof vscode.LanguageModelToolResultPart) {
+    return part.content.reduce<MessageMetrics>((total, nested) => {
+      const metrics = partMetrics(nested);
+      return {
+        textChars: total.textChars + metrics.textChars,
+        imageCount: total.imageCount + metrics.imageCount,
+      };
+    }, { textChars: 0, imageCount: 0 });
+  }
+  return { textChars: partText(part).length, imageCount: 0 };
 }
 
 function isThinkingPart(value: unknown): value is { value: string | string[] } {

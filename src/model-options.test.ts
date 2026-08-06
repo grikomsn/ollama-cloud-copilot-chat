@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { type CloudModel } from "./catalog";
+import { fallbackModels, type CloudModel } from "./catalog";
 import { buildThinkingSchema, resolveThinkValue } from "./model-options";
 
-function model(family: string, thinking = true): CloudModel {
+function model(id: string, family: string, thinking = true): CloudModel {
   return {
-    id: family,
-    name: family,
+    id,
+    name: id,
     family,
     version: "1",
     contextLength: 1000,
@@ -15,28 +15,72 @@ function model(family: string, thinking = true): CloudModel {
   };
 }
 
-test("GPT-OSS offers only its supported levels", () => {
-  const schema = buildThinkingSchema(model("gpt-oss"));
-  assert.deepEqual(schema?.properties.thinkingEffort.enum, ["low", "medium", "high"]);
-  assert.equal(resolveThinkValue(model("gpt-oss"), { thinkingEffort: "high" }), "high");
-  assert.equal(resolveThinkValue(model("gpt-oss"), { thinkingEffort: "disabled" }), "medium");
+const EXPECTED_PROFILES = new Map<string, readonly string[]>([
+  ["deepseek-v4-flash:0731", ["disabled", "high", "max"]],
+  ["deepseek-v4-flash:preview", ["disabled", "high", "max"]],
+  ["deepseek-v4-pro", ["disabled", "high", "max"]],
+  ["gemma4:31b", ["disabled", "enabled"]],
+  ["glm-5.1", ["disabled", "enabled"]],
+  ["glm-5.2", ["disabled", "high", "max"]],
+  ["gpt-oss:20b", ["low", "medium", "high"]],
+  ["gpt-oss:120b", ["low", "medium", "high"]],
+  ["kimi-k2.6", ["disabled", "enabled"]],
+  ["kimi-k2.7-code", ["disabled", "enabled"]],
+  ["kimi-k3", ["disabled", "low", "high", "max"]],
+  ["nemotron-3-nano:30b", ["disabled", "enabled"]],
+  ["nemotron-3-super", ["disabled", "enabled"]],
+  ["nemotron-3-ultra", ["disabled", "enabled"]],
+  ["qwen3.5:397b", ["disabled", "enabled"]],
+]);
+
+test("every fallback model has its exact verified thinking profile", () => {
+  for (const candidate of fallbackModels()) {
+    const values = buildThinkingSchema(candidate)?.properties.thinkingEffort.enum;
+    assert.deepEqual(values, EXPECTED_PROFILES.get(candidate.id), candidate.id);
+  }
 });
 
-test("other thinking models support off and standardized levels", () => {
-  const schema = buildThinkingSchema(model("qwen"));
-  assert.deepEqual(schema?.properties.thinkingEffort.enum, ["disabled", "low", "medium", "high", "max"]);
-  assert.equal(resolveThinkValue(model("qwen"), { thinkingEffort: "disabled" }), false);
-  assert.equal(resolveThinkValue(model("qwen"), { thinkingEffort: "max" }), "max");
+test("GPT-OSS supports only low, medium, and high", () => {
+  const candidate = model("gpt-oss:20b", "gpt-oss");
+  assert.equal(buildThinkingSchema(candidate)?.type, "object");
+  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "low" }), "low");
+  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "high" }), "high");
+  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "max" }), "medium");
 });
 
-test("MiniMax omits off because the cloud backend keeps thinking enabled", () => {
-  const schema = buildThinkingSchema(model("minimax"));
-  assert.deepEqual(schema?.properties.thinkingEffort.enum, ["low", "medium", "high", "max"]);
-  assert.equal(resolveThinkValue(model("minimax"), { thinkingEffort: "disabled" }), "high");
-  assert.equal(resolveThinkValue(model("minimax"), { thinkingEffort: "low" }), "low");
+test("DeepSeek V4 supports off, high, and max", () => {
+  const candidate = model("deepseek-v4-pro", "deepseek");
+  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "disabled" }), false);
+  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "high" }), "high");
+  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "max" }), "max");
+  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "low" }), "high");
 });
 
-test("non-thinking models expose no controls or request value", () => {
-  assert.equal(buildThinkingSchema(model("mistral", false)), undefined);
-  assert.equal(resolveThinkValue(model("mistral", false), {}), undefined);
+test("GLM 5.2 defaults to max while GLM 5.1 remains boolean", () => {
+  const glm52 = model("glm-5.2", "glm");
+  assert.equal(resolveThinkValue(glm52, undefined), "max");
+  assert.equal(resolveThinkValue(glm52, { thinkingEffort: "disabled" }), false);
+  assert.equal(resolveThinkValue(model("glm-5.1", "glm"), undefined), true);
+});
+
+test("Kimi K3 supports off plus low, high, and max", () => {
+  const candidate = model("kimi-k3", "kimi");
+  assert.equal(resolveThinkValue(candidate, undefined), "max");
+  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "disabled" }), false);
+  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "low" }), "low");
+  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "high" }), "high");
+});
+
+test("boolean models map Off and On to native booleans", () => {
+  const candidate = model("qwen3.5:397b", "qwen");
+  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "disabled" }), false);
+  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "enabled" }), true);
+  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "max" }), true);
+});
+
+test("model-managed, unknown, and non-thinking models expose no control", () => {
+  assert.equal(buildThinkingSchema(model("minimax-m3", "minimax")), undefined);
+  assert.equal(resolveThinkValue(model("minimax-m2.7", "minimax"), {}), undefined);
+  assert.equal(buildThinkingSchema(model("future-thinking", "future")), undefined);
+  assert.equal(buildThinkingSchema(model("mistral-large-3:675b", "mistral", false)), undefined);
 });
