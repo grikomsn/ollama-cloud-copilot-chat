@@ -22,18 +22,19 @@ test("GPT-OSS offers only its supported levels", () => {
   assert.equal(resolveThinkValue(model("gpt-oss"), { thinkingEffort: "disabled" }), "medium");
 });
 
-test("other thinking models support off and standardized levels", () => {
+test("Qwen and DeepSeek expose only their documented boolean control", () => {
   const schema = buildThinkingSchema(model("qwen"));
-  assert.deepEqual(schema?.properties.thinkingEffort.enum, ["disabled", "low", "medium", "high", "max"]);
+  assert.deepEqual(schema?.properties.thinkingEffort.enum, ["disabled", "enabled"]);
   assert.equal(resolveThinkValue(model("qwen"), { thinkingEffort: "disabled" }), false);
-  assert.equal(resolveThinkValue(model("qwen"), { thinkingEffort: "max" }), "max");
+  assert.equal(resolveThinkValue(model("qwen"), { thinkingEffort: "enabled" }), true);
+  assert.equal(resolveThinkValue(model("deepseek"), undefined), true);
 });
 
-test("MiniMax omits off because the cloud backend keeps thinking enabled", () => {
-  const schema = buildThinkingSchema(model("minimax"));
-  assert.deepEqual(schema?.properties.thinkingEffort.enum, ["low", "medium", "high", "max"]);
-  assert.equal(resolveThinkValue(model("minimax"), { thinkingEffort: "disabled" }), "high");
-  assert.equal(resolveThinkValue(model("minimax"), { thinkingEffort: "low" }), "low");
+test("model-managed thinking families do not advertise controls inferred from a flag", () => {
+  assert.equal(buildThinkingSchema(model("minimax")), undefined);
+  assert.equal(resolveThinkValue(model("minimax"), { thinkingEffort: "low" }), undefined);
+  assert.equal(buildThinkingSchema(model("kimi")), undefined);
+  assert.equal(resolveThinkValue(model("kimi"), { thinkingEffort: "disabled" }), undefined);
 });
 
 test("non-thinking models expose no controls or request value", () => {

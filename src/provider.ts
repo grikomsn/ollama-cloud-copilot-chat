@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { randomUUID } from "node:crypto";
 import { OllamaCloudAuth } from "./auth";
 import {
   ModelCatalog,
@@ -113,6 +114,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
       const controller = new AbortController();
       const listener = token.onCancellationRequested(() => controller.abort());
       try {
+        if (token.isCancellationRequested) controller.abort();
         await this.catalog.refresh(apiKey, controller.signal);
       } catch (error) {
         if (!token.isCancellationRequested) {
@@ -136,15 +138,28 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     const model = this.catalog.get(information.rawModelId);
     if (!model) throw new Error(`Unknown Ollama Cloud model: ${information.rawModelId}`);
     const requestChars = messages.reduce((sum, message) => sum + messageText(message).length, 0);
+    const estimatedInputTokens = Math.max(
+      1,
+      Math.ceil(requestChars / (this.charsPerToken.get(model.id) ?? 4)),
+    );
+    const remainingContextTokens = Math.max(1, model.contextLength - estimatedInputTokens);
     const maxOutputTokens = Math.min(
       model.maxOutputTokens,
-      Math.max(1, this.configuration.get("maxOutputTokens", 32768)),
+      remainingContextTokens,
+      Math.max(1, this.configuration.get("maxOutputTokens", 65536)),
     );
     const tools = convertTools(options.tools);
     const think = resolveThinkValue(model, options.modelConfiguration);
+    const convertedMessages = convertMessages(messages);
+    if (tools.length && options.toolMode === vscode.LanguageModelChatToolMode.Required) {
+      convertedMessages.unshift({
+        role: "system",
+        content: "You must call at least one of the provided tools before answering. Do not answer directly.",
+      });
+    }
     const body = {
       model: model.id,
-      messages: convertMessages(messages),
+      messages: convertedMessages,
       stream: true,
       ...(tools.length ? { tools } : {}),
       ...(think === undefined ? {} : { think }),
@@ -153,8 +168,18 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
 
     const controller = new AbortController();
     const timeoutSeconds = Math.max(10, this.configuration.get("requestTimeoutSeconds", 600));
-    const timeout = setTimeout(() => controller.abort(), timeoutSeconds * 1000);
     const cancellation = token.onCancellationRequested(() => controller.abort());
+    let timedOut = false;
+    let requestTimeout: ReturnType<typeof setTimeout> | undefined;
+    const resetRequestTimeout = (): void => {
+      if (requestTimeout) clearTimeout(requestTimeout);
+      requestTimeout = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, timeoutSeconds * 1000);
+    };
+    resetRequestTimeout();
+    if (token.isCancellationRequested) controller.abort();
     try {
       const response = await fetch(`${OLLAMA_CLOUD_API}/chat`, {
         method: "POST",
@@ -173,6 +198,13 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
       const parser = new NdjsonStreamParser();
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
+      const streamState: ResponseStreamState = {
+        sawDone: false,
+        sawAnswer: false,
+        thinkingOpen: false,
+        toolCallIndex: 0,
+        requestId: randomUUID(),
+      };
       while (true) {
         if (token.isCancellationRequested) {
           await reader.cancel();
@@ -180,24 +212,35 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
         }
         const chunk = await reader.read();
         if (chunk.done) break;
+        resetRequestTimeout();
         for (const event of parser.push(decoder.decode(chunk.value, { stream: true }))) {
-          this.reportEvent(model, event, progress, requestChars);
+          this.reportEvent(model, event, progress, requestChars, streamState);
         }
       }
       for (const event of parser.push(decoder.decode())) {
-        this.reportEvent(model, event, progress, requestChars);
+        this.reportEvent(model, event, progress, requestChars, streamState);
       }
       for (const event of parser.finish()) {
-        this.reportEvent(model, event, progress, requestChars);
+        this.reportEvent(model, event, progress, requestChars, streamState);
+      }
+      this.closeThinking(progress, streamState);
+      if (!streamState.sawDone) {
+        throw new Error(`Ollama Cloud stream ended before ${model.id} reported completion`);
+      }
+      if (!streamState.sawAnswer) {
+        throw new Error(`${model.id} completed without returning an answer or tool call`);
       }
       void this.refreshUsage().catch((error) => {
         this.output.appendLine(`[usage] post-request refresh failed: ${messageOf(error)}`);
       });
     } catch (error) {
       if (token.isCancellationRequested) return;
+      if (timedOut) {
+        throw new Error(`Ollama Cloud request for ${model.id} received no data for ${timeoutSeconds} seconds`);
+      }
       throw error;
     } finally {
-      clearTimeout(timeout);
+      if (requestTimeout) clearTimeout(requestTimeout);
       cancellation.dispose();
     }
   }
@@ -265,7 +308,14 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
 
   private toModelInformation(model: CloudModel, authenticated: boolean): OllamaCloudModelInformation {
     const modalities = model.capabilities.imageInput ? "text + images" : "text";
-    const thinking = model.capabilities.thinking ? "configurable thinking" : "no thinking trace";
+    const thinkingSchema = buildThinkingSchema(model);
+    const maxOutputTokens = Math.min(
+      model.maxOutputTokens,
+      Math.max(1, this.configuration.get("maxOutputTokens", 65536)),
+    );
+    const thinking = thinkingSchema
+      ? "configurable thinking"
+      : model.capabilities.thinking ? "model-managed thinking" : "no thinking trace";
     const parameters = [model.parameterSize, model.quantization].filter(Boolean).join(" ");
     const retirement = model.retirementDate ? ` · retires ${model.retirementDate}` : "";
     return {
@@ -280,12 +330,11 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
         `${modalities} · tools ${model.capabilities.toolCalling ? "supported" : "unavailable"} · ${thinking}`,
         `${TOKEN_PRICING}${parameters ? ` · ${parameters}` : ""}${retirement}`,
       ].join("\n"),
-      maxInputTokens: model.contextLength,
-      maxOutputTokens: model.maxOutputTokens,
+      maxInputTokens: Math.max(1, model.contextLength - maxOutputTokens),
+      maxOutputTokens,
       isUserSelectable: true,
       requiresAuthorization: authenticated ? undefined : { label: "Configure Ollama Cloud API key" },
-      pricing: TOKEN_PRICING,
-      ...(buildThinkingSchema(model) ? { configurationSchema: buildThinkingSchema(model) } : {}),
+      ...(thinkingSchema ? { configurationSchema: thinkingSchema } : {}),
       capabilities: {
         imageInput: model.capabilities.imageInput,
         toolCalling: model.capabilities.toolCalling,
@@ -299,22 +348,30 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     event: OllamaStreamEvent,
     progress: vscode.Progress<vscode.LanguageModelResponsePart2>,
     requestChars: number,
+    state: ResponseStreamState,
   ): void {
     if (event.error) throw new Error(`Ollama Cloud stream failed for ${model.id}: ${event.error}`);
-    if (event.text) progress.report(new vscode.LanguageModelTextPart(event.text));
     if (event.thinking) {
+      state.thinkingOpen = true;
       const ThinkingPart = (vscode as unknown as {
         LanguageModelThinkingPart?: typeof vscode.LanguageModelThinkingPart;
       }).LanguageModelThinkingPart;
-      if (ThinkingPart) progress.report(new ThinkingPart(event.thinking));
+      if (ThinkingPart) {
+        progress.report(new ThinkingPart(event.thinking));
+      }
     }
-    let toolIndex = 0;
+    if (event.text || event.toolCalls?.length || event.done) this.closeThinking(progress, state);
+    if (event.text) {
+      progress.report(new vscode.LanguageModelTextPart(event.text));
+      state.sawAnswer = true;
+    }
     for (const tool of event.toolCalls ?? []) {
       progress.report(new vscode.LanguageModelToolCallPart(
-        tool.id ?? `ollama-cloud-${Date.now()}-${toolIndex++}`,
+        tool.id ?? `ollama-cloud-${state.requestId}-${state.toolCallIndex++}`,
         tool.function.name,
         tool.function.arguments,
       ));
+      state.sawAnswer = true;
     }
     if (event.promptTokens !== undefined && event.completionTokens !== undefined) {
       if (requestChars > 0 && event.promptTokens > 0) {
@@ -339,6 +396,31 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
         USAGE_MIME_TYPE,
       ));
     }
+    if (event.done) {
+      state.sawDone = true;
+      if (event.doneReason === "length") {
+        throw new Error(
+          `${model.id} reached its output limit before completing; increase ollamaCloudCopilot.maxOutputTokens or reduce thinking`,
+        );
+      }
+      if (this.debugLogging) {
+        this.output.appendLine(`[response] model=${model.id} doneReason=${event.doneReason ?? "unspecified"}`);
+      }
+    }
+  }
+
+  private closeThinking(
+    progress: vscode.Progress<vscode.LanguageModelResponsePart2>,
+    state: ResponseStreamState,
+  ): void {
+    if (!state.thinkingOpen) return;
+    const ThinkingPart = (vscode as unknown as {
+      LanguageModelThinkingPart?: typeof vscode.LanguageModelThinkingPart;
+    }).LanguageModelThinkingPart;
+    if (ThinkingPart) {
+      progress.report(new ThinkingPart("", "", { vscode_reasoning_done: true }));
+    }
+    state.thinkingOpen = false;
   }
 
   private async requireApiKey(prompt: boolean): Promise<string> {
@@ -374,6 +456,14 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     this.usage = usage;
     this.usageEmitter.fire(usage);
   }
+}
+
+interface ResponseStreamState {
+  sawDone: boolean;
+  sawAnswer: boolean;
+  thinkingOpen: boolean;
+  toolCallIndex: number;
+  requestId: string;
 }
 
 function formatTokens(tokens: number): string {

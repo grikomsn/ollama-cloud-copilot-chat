@@ -8,21 +8,21 @@ The fallback snapshot was last updated on 2026-08-01:
 
 | Model | Context | Images | Tools | Thinking |
 | --- | ---: | :---: | :---: | :---: |
-| DeepSeek V4 Flash 0731 | 1.049M | No | Yes | Effort |
-| Kimi K3 | 1.049M | Yes | Yes | Effort |
-| Kimi K2.7 Code | 262K | Yes | Yes | Effort |
-| GLM 5.2 | 1M | No | Yes | Effort |
-| MiniMax M3 | 524K | Yes | Yes | Effort |
-| Nemotron 3 Ultra | 262K | No | Yes | Effort |
-| DeepSeek V4 Pro | 524K | No | Yes | Effort |
-| DeepSeek V4 Flash | 1.049M | No | Yes | Effort |
-| Gemma 4 31B | 262K | Yes | Yes | Effort |
-| Qwen 3.5 397B | 262K | Yes | Yes | Effort |
-| Kimi K2.6 | 262K | Yes | Yes | Effort |
-| MiniMax M2.7 | 197K | No | Yes | Effort |
-| GLM 5.1 | 203K | No | Yes | Effort |
-| Nemotron 3 Super | 262K | No | Yes | Effort |
-| Nemotron 3 Nano 30B | 262K | No | Yes | Effort |
+| DeepSeek V4 Flash 0731 | 1.049M | No | Yes | On / Off |
+| Kimi K3 | 1.049M | Yes | Yes | Model-managed |
+| Kimi K2.7 Code | 262K | Yes | Yes | Model-managed |
+| GLM 5.2 | 1M | No | Yes | Model-managed |
+| MiniMax M3 | 524K | Yes | Yes | Model-managed |
+| Nemotron 3 Ultra | 262K | No | Yes | Model-managed |
+| DeepSeek V4 Pro | 524K | No | Yes | On / Off |
+| DeepSeek V4 Flash | 1.049M | No | Yes | On / Off |
+| Gemma 4 31B | 262K | Yes | Yes | Model-managed |
+| Qwen 3.5 397B | 262K | Yes | Yes | On / Off |
+| Kimi K2.6 | 262K | Yes | Yes | Model-managed |
+| MiniMax M2.7 | 197K | No | Yes | Model-managed |
+| GLM 5.1 | 203K | No | Yes | Model-managed |
+| Nemotron 3 Super | 262K | No | Yes | Model-managed |
+| Nemotron 3 Nano 30B | 262K | No | Yes | Model-managed |
 | Mistral Large 3 675B | 262K | Yes | Yes | No |
 | GPT-OSS 120B | 131K | No | Yes | Low / Medium / High |
 | GPT-OSS 20B | 131K | No | Yes | Low / Medium / High |
@@ -33,9 +33,9 @@ Kimi K3 currently requires an Ollama Pro or Max subscription and consumes extra 
 
 ## Thinking
 
-Ollama's thinking API accepts boolean controls or named effort levels. GPT-OSS supports `low`, `medium`, and `high`. Other compatible models can support `low`, `medium`, `high`, and `max`, with an Off choice when the hosted backend honors `think: false`. See [Ollama thinking](https://docs.ollama.com/capabilities/thinking).
+The picker exposes only controls verified for a model family. GPT-OSS supports `low`, `medium`, and `high` and cannot disable thinking. Qwen and DeepSeek expose Ollama's documented On/Off control. A broad `/api/show` `thinking` capability does not prove that named effort levels or disabling work, so Kimi, GLM, MiniMax, Nemotron, Gemma, and newly discovered families use the backend default without a speculative picker control. See [Ollama thinking](https://docs.ollama.com/capabilities/thinking).
 
-Live Cloud probes show MiniMax models continuing to return reasoning when `think: false`, so their picker intentionally omits the misleading Off choice.
+Thinking, visible output, and tool calls all consume the generated-token allowance. The provider reserves output space inside the model's single context budget, reports `done_reason: length` as an actionable error, and never treats an Ollama stream that ends without `done: true` as a successful response.
 
 ## Pricing and token accounting
 

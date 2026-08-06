@@ -24,9 +24,20 @@ test("parses fragmented text, thinking, tools, and final usage", () => {
   }]);
 });
 
-test("ignores malformed lines and continues", () => {
+test("surfaces malformed lines and continues parsing later events", () => {
   const parser = new NdjsonStreamParser();
-  assert.deepEqual(parser.push("not json\n\n{\"message\":{\"content\":\"ok\"}}\n"), [{ text: "ok" }]);
+  assert.deepEqual(parser.push("not json\n\n{\"message\":{\"content\":\"ok\"}}\n"), [
+    { error: "Ollama Cloud returned malformed NDJSON" },
+    { text: "ok" },
+  ]);
+});
+
+test("preserves terminal done reasons", () => {
+  const parser = new NdjsonStreamParser();
+  assert.deepEqual(parser.push('{"done":true,"done_reason":"length"}\n'), [{
+    done: true,
+    doneReason: "length",
+  }]);
 });
 
 test("accepts a final line without a newline", () => {
@@ -48,4 +59,11 @@ test("surfaces streamed API errors and string tool arguments", () => {
     },
     { error: "model retired" },
   ]);
+});
+
+test("rejects invalid completed tool arguments", () => {
+  const parser = new NdjsonStreamParser();
+  assert.deepEqual(parser.push(
+    '{"message":{"tool_calls":[{"function":{"name":"read","arguments":"{broken"}}]}}\n',
+  ), [{ error: "Ollama Cloud returned invalid arguments for tool read" }]);
 });

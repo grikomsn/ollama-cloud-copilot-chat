@@ -21,7 +21,7 @@ This extension is a native VS Code `LanguageModelChatProvider`. It validates an 
 - API keys stored in VS Code Secret Storage
 - Live model discovery enriched with context length, modality, and tool metadata
 - Streaming text and separate thinking parts
-- Model-specific thinking effort in the Copilot Chat model picker
+- Verified model-specific thinking controls in the Copilot Chat model picker
 - Image inputs and agent-mode tool calls where supported
 - Exact response token accounting for Copilot's context indicator
 - Status-bar indicator for five-hour and weekly subscription usage
