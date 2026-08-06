@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.3
+
+### Patch Changes
+
+- ac86f06: Fix incomplete thinking streams, expose output-limit failures, close VS Code thinking sections correctly on every exit, enforce required tool calls, preserve native Ollama parallel tool-call history, and avoid treating image base64 as text tokens. The picker now uses exact live-verified controls, adding On/Off for GLM, Kimi K2.6/K2.7 Code, Gemma 4, and Nemotron while keeping MiniMax model-managed because Ollama Cloud ignores its disable value. Refresh the fallback catalog with DeepSeek V4 Flash Preview and stop inferring tool support for unknown models.
+- ac86f06: Expose live-verified effort controls for Kimi K3, GLM 5.2, and DeepSeek V4 while keeping boolean and model-managed models on their correct control types.
+
 ## 0.1.2
 
 ### Patch Changes
