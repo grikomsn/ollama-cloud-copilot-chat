@@ -2,25 +2,56 @@ import type { CloudModel } from "./catalog";
 
 export type ThinkValue = boolean | "low" | "medium" | "high" | "max";
 
-const GPT_OSS_LEVELS = ["low", "medium", "high"] as const;
-const BOOLEAN_VALUES = ["disabled", "enabled"] as const;
-const BOOLEAN_THINKING_MODELS = new Set([
-  "deepseek-v4-flash:0731",
-  "deepseek-v4-flash:preview",
-  "deepseek-v4-pro",
-  "gemma4:31b",
-  "glm-5.1",
-  "glm-5.2",
-  "kimi-k2.6",
-  "kimi-k2.7-code",
-  "nemotron-3-nano:30b",
-  "nemotron-3-super",
-  "nemotron-3-ultra",
-  "qwen3.5:397b",
-]);
-const GPT_OSS_MODELS = new Set([
-  "gpt-oss:20b",
-  "gpt-oss:120b",
+type ThinkingChoice = "disabled" | "enabled" | Exclude<ThinkValue, boolean>;
+
+interface ThinkingProfile {
+  readonly values: readonly ThinkingChoice[];
+  readonly defaultValue: ThinkingChoice;
+  readonly title: "Thinking" | "Thinking Effort";
+}
+
+const BOOLEAN_PROFILE: ThinkingProfile = {
+  values: ["disabled", "enabled"],
+  defaultValue: "enabled",
+  title: "Thinking",
+};
+const GPT_OSS_PROFILE: ThinkingProfile = {
+  values: ["low", "medium", "high"],
+  defaultValue: "medium",
+  title: "Thinking Effort",
+};
+const DEEPSEEK_V4_PROFILE: ThinkingProfile = {
+  values: ["disabled", "high", "max"],
+  defaultValue: "high",
+  title: "Thinking Effort",
+};
+const GLM_52_PROFILE: ThinkingProfile = {
+  values: ["disabled", "high", "max"],
+  defaultValue: "max",
+  title: "Thinking Effort",
+};
+const KIMI_K3_PROFILE: ThinkingProfile = {
+  values: ["disabled", "low", "high", "max"],
+  defaultValue: "max",
+  title: "Thinking Effort",
+};
+
+const THINKING_PROFILES = new Map<string, ThinkingProfile>([
+  ["deepseek-v4-flash:0731", DEEPSEEK_V4_PROFILE],
+  ["deepseek-v4-flash:preview", DEEPSEEK_V4_PROFILE],
+  ["deepseek-v4-pro", DEEPSEEK_V4_PROFILE],
+  ["gemma4:31b", BOOLEAN_PROFILE],
+  ["glm-5.1", BOOLEAN_PROFILE],
+  ["glm-5.2", GLM_52_PROFILE],
+  ["gpt-oss:20b", GPT_OSS_PROFILE],
+  ["gpt-oss:120b", GPT_OSS_PROFILE],
+  ["kimi-k2.6", BOOLEAN_PROFILE],
+  ["kimi-k2.7-code", BOOLEAN_PROFILE],
+  ["kimi-k3", KIMI_K3_PROFILE],
+  ["nemotron-3-nano:30b", BOOLEAN_PROFILE],
+  ["nemotron-3-super", BOOLEAN_PROFILE],
+  ["nemotron-3-ultra", BOOLEAN_PROFILE],
+  ["qwen3.5:397b", BOOLEAN_PROFILE],
 ]);
 
 export function buildThinkingSchema(model: CloudModel): {
@@ -28,22 +59,20 @@ export function buildThinkingSchema(model: CloudModel): {
   properties: Record<string, Record<string, unknown>>;
 } | undefined {
   if (!model.capabilities.thinking) return undefined;
-  const gptOss = GPT_OSS_MODELS.has(model.id);
-  const booleanControl = BOOLEAN_THINKING_MODELS.has(model.id);
-  if (!gptOss && !booleanControl) return undefined;
-  const values = gptOss ? GPT_OSS_LEVELS : BOOLEAN_VALUES;
+  const profile = THINKING_PROFILES.get(model.id);
+  if (!profile) return undefined;
   return {
     type: "object",
     properties: {
       thinkingEffort: {
         type: "string",
-        title: gptOss ? "Thinking Effort" : "Thinking",
-        enum: [...values],
-        enumItemLabels: values.map(label),
-        description: gptOss
-          ? "Choose how much reasoning the model performs"
-          : "Enable or disable the model's reasoning trace",
-        default: gptOss ? "medium" : "enabled",
+        title: profile.title,
+        enum: [...profile.values],
+        enumItemLabels: profile.values.map(label),
+        description: profile.values.includes("disabled")
+          ? "Choose the model's thinking mode or reasoning effort"
+          : "Choose how much reasoning the model performs",
+        default: profile.defaultValue,
         group: "navigation",
       },
     },
@@ -55,18 +84,18 @@ export function resolveThinkValue(
   configuration: Readonly<Record<string, unknown>> | undefined,
 ): ThinkValue | undefined {
   if (!model.capabilities.thinking) return undefined;
-  const value = configuration?.thinkingEffort;
-  if (GPT_OSS_MODELS.has(model.id)) {
-    return typeof value === "string" && GPT_OSS_LEVELS.includes(value as typeof GPT_OSS_LEVELS[number])
-      ? value as typeof GPT_OSS_LEVELS[number]
-      : "medium";
-  }
-  if (!BOOLEAN_THINKING_MODELS.has(model.id)) return undefined;
+  const profile = THINKING_PROFILES.get(model.id);
+  if (!profile) return undefined;
+  const configured = configuration?.thinkingEffort;
+  const value = typeof configured === "string" && profile.values.includes(configured as ThinkingChoice)
+    ? configured as ThinkingChoice
+    : profile.defaultValue;
   if (value === "disabled") return false;
-  return true;
+  if (value === "enabled") return true;
+  return value;
 }
 
-function label(value: string): string {
+function label(value: ThinkingChoice): string {
   if (value === "disabled") return "Off";
   if (value === "enabled") return "On";
   return value.charAt(0).toUpperCase() + value.slice(1);

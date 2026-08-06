@@ -53,7 +53,7 @@ Account utilization comes from Ollama's bearer-authenticated `/api/usage` respon
 
 ## Thinking effort
 
-Thinking controls appear only where the accepted native values are known. GPT-OSS offers Low, Medium, and High. Qwen and DeepSeek offer On and Off. Other thinking-capable families use their model-managed default instead of displaying unverified levels or toggles. The picker selection applies to that request through Ollama's native `think` field.
+Thinking controls appear only where the accepted native values are known. GPT-OSS offers Low, Medium, and High; Kimi K3 offers Off, Low, High, and Max; GLM 5.2 and DeepSeek V4 offer Off, High, and Max. Verified boolean models offer On and Off. MiniMax remains model-managed because Ollama Cloud does not honor its disable value. The picker selection applies to that request through Ollama's native `think` field.
 
 ## Troubleshooting
 
