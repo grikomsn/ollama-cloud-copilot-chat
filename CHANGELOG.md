@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.4
+
+### Patch Changes
+
+- 6d3fa06: Keep Copilot's context indicator accurate when Ollama omits terminal token counts by preserving split native usage and estimating only missing values.
+
 ## 0.1.3
 
 ### Patch Changes
