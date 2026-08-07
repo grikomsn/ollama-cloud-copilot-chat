@@ -47,7 +47,7 @@ Prompts, responses, tool data, and API keys are never intentionally written to t
 
 ## Subscription usage
 
-The status bar shows exact account utilization as `5h` session and `7d` weekly percentages. Click it for per-model request counts, account activity cost when Ollama provides it, and exact input/output tokens observed by this extension.
+The status bar shows exact account utilization as `5h` session and `7d` weekly percentages. Click it for per-model request counts, account activity cost when Ollama provides it, and input/output tokens observed by this extension. Request tokens use native Ollama counts when available and clearly label fallback estimates when a completed stream omits a count.
 
 Account utilization comes from Ollama's bearer-authenticated `/api/usage` response. It does not require browser cookies or page scraping. Ollama describes these limits as GPU/time based rather than fixed token quotas, so the extension keeps account utilization separate from request token totals. The last successful snapshot remains visible if a refresh temporarily fails.
 

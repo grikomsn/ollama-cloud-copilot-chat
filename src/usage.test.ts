@@ -63,8 +63,25 @@ test("tracks exact local request tokens without replacing account windows", () =
     promptTokens: 30,
     completionTokens: 10,
     totalTokens: 40,
+    estimatedRequests: 0,
   });
   assert.equal(second.lastRequest?.modelId, "glm-5.2");
+});
+
+test("labels locally estimated request usage", () => {
+  const snapshot = recordRequestUsage(
+    {},
+    "minimax-m3",
+    120,
+    8,
+    100,
+    { promptEstimated: true },
+  );
+  assert.equal(snapshot.lastRequest?.promptEstimated, true);
+  assert.equal(snapshot.lastRequest?.completionEstimated, undefined);
+  assert.equal(snapshot.tracked?.estimatedRequests, 1);
+  assert.match(formatUsageRows(snapshot)[0].detail ?? "", /1 included estimates/);
+  assert.match(formatUsageRows(snapshot)[1].detail ?? "", /120 estimated input/);
 });
 
 test("preserves stale usage and reports malformed refresh data", () => {

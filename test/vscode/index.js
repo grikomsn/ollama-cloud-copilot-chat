@@ -32,6 +32,22 @@ async function run() {
     vendor: "ollama-cloud",
   });
   assert.ok(registered.length >= 1, "VS Code can select registered Ollama Cloud models");
+  const inferenceModel = registered.find((model) => model.id === result.model)
+    ?? registered[0];
+  const response = await inferenceModel.sendRequest(
+    [vscode.LanguageModelChatMessage.User("Reply with exactly: usage verified")],
+    {},
+    new vscode.CancellationTokenSource().token,
+  );
+  const usageParts = [];
+  for await (const part of response.stream) {
+    if (part instanceof vscode.LanguageModelDataPart && part.mimeType === "usage") {
+      usageParts.push(JSON.parse(new TextDecoder().decode(part.data)));
+    }
+  }
+  assert.equal(usageParts.length, 1, "the provider emits exactly one usage part");
+  assert.ok(usageParts[0].prompt_tokens > 0, "usage includes prompt tokens");
+  assert.ok(usageParts[0].completion_tokens > 0, "usage includes completion tokens");
   const commands = await vscode.commands.getCommands(true);
   assert.ok(commands.includes("ollamaCloudCopilot.showUsage"));
   assert.ok(commands.includes("ollamaCloudCopilot.openUsage"));
