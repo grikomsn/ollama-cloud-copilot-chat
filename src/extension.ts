@@ -120,7 +120,12 @@ export function activate(
 
   return context.extensionMode !== vscode.ExtensionMode.Production
     ? {
-        smokeTestWithApiKey: (apiKey: string) => provider.smokeTestWithApiKey(apiKey),
+        smokeTestWithApiKey: async (apiKey: string) => {
+          const result = await provider.smokeTestWithApiKey(apiKey);
+          await auth.storeApiKey(apiKey);
+          provider.fireDidChange();
+          return result;
+        },
       }
     : undefined;
 }

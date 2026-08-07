@@ -4,6 +4,7 @@ export interface ResponseStreamState {
   sawDone: boolean;
   sawAnswer: boolean;
   sawToolCall: boolean;
+  outputLimited: boolean;
   thinkingOpen: boolean;
   toolCallIndex: number;
   readonly requestId: string;
@@ -14,6 +15,7 @@ export function createResponseStreamState(requestId: string): ResponseStreamStat
     sawDone: false,
     sawAnswer: false,
     sawToolCall: false,
+    outputLimited: false,
     thinkingOpen: false,
     toolCallIndex: 0,
     requestId,
@@ -37,7 +39,8 @@ export function observeResponseEvent(
   if (event.done) {
     state.sawDone = true;
   }
-  return { closeThinking, outputLimited: event.doneReason === "length" };
+  if (event.doneReason === "length") state.outputLimited = true;
+  return { closeThinking, outputLimited: state.outputLimited };
 }
 
 export function validateResponseCompletion(

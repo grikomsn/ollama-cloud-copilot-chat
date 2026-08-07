@@ -23,7 +23,7 @@ This extension is a native VS Code `LanguageModelChatProvider`. It validates an 
 - Streaming text and separate thinking parts
 - Verified model-specific thinking controls in the Copilot Chat model picker
 - Image inputs and agent-mode tool calls where supported
-- Exact response token accounting for Copilot's context indicator
+- Resilient response token accounting for Copilot's context indicator
 - Status-bar indicator for five-hour and weekly subscription usage
 
 ## Quick start
@@ -34,6 +34,8 @@ This extension is a native VS Code `LanguageModelChatProvider`. It validates an 
 4. Open Copilot Chat, select **Manage Models**, enable **Ollama Cloud**, then choose a hosted model.
 
 Click the Ollama status-bar item or run **Ollama Cloud: Show Subscription Usage** to inspect exact five-hour and weekly utilization, per-model request counts, and tokens observed by this extension. Ollama's account limits are GPU/time based rather than token quotas, so account utilization and local token totals are shown separately.
+
+Request totals use Ollama's native token counts when available. If a completed stream omits either count, the extension estimates only the missing value so VS Code does not incorrectly reset the conversation context indicator to zero.
 
 Use **Ollama Cloud: Manage Connection** to test inference, refresh models, replace or remove the key, inspect usage and logs, or create a secret-safe diagnostic snapshot.
 

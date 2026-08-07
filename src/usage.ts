@@ -20,6 +20,8 @@ export interface RequestTokenUsage {
   completionTokens: number;
   totalTokens: number;
   recordedAt: number;
+  promptEstimated?: boolean;
+  completionEstimated?: boolean;
 }
 
 export interface TrackedTokenUsage {
@@ -27,6 +29,12 @@ export interface TrackedTokenUsage {
   promptTokens: number;
   completionTokens: number;
   totalTokens: number;
+  estimatedRequests?: number;
+}
+
+export interface RequestUsageProvenance {
+  promptEstimated?: boolean;
+  completionEstimated?: boolean;
 }
 
 export interface OllamaUsageSnapshot {
@@ -98,8 +106,11 @@ export function recordRequestUsage(
   promptTokens: number,
   completionTokens: number,
   recordedAt = Date.now(),
+  provenance: RequestUsageProvenance = {},
 ): OllamaUsageSnapshot {
   const totalTokens = promptTokens + completionTokens;
+  const estimated = provenance.promptEstimated === true
+    || provenance.completionEstimated === true;
   return {
     ...current,
     lastRequest: {
@@ -108,12 +119,15 @@ export function recordRequestUsage(
       completionTokens,
       totalTokens,
       recordedAt,
+      ...(provenance.promptEstimated ? { promptEstimated: true } : {}),
+      ...(provenance.completionEstimated ? { completionEstimated: true } : {}),
     },
     tracked: {
       requests: (current.tracked?.requests ?? 0) + 1,
       promptTokens: (current.tracked?.promptTokens ?? 0) + promptTokens,
       completionTokens: (current.tracked?.completionTokens ?? 0) + completionTokens,
       totalTokens: (current.tracked?.totalTokens ?? 0) + totalTokens,
+      estimatedRequests: (current.tracked?.estimatedRequests ?? 0) + (estimated ? 1 : 0),
     },
   };
 }
@@ -133,8 +147,11 @@ export function formatUsageTooltip(snapshot: OllamaUsageSnapshot): string {
   if (snapshot.session) lines.push(`Session (5h): ${formatPercent(snapshot.session.usedRatio)} used`);
   if (snapshot.weekly) lines.push(`Weekly (7d): ${formatPercent(snapshot.weekly.usedRatio)} used`);
   if (snapshot.tracked) {
+    const estimateNote = snapshot.tracked.estimatedRequests
+      ? ` (${snapshot.tracked.estimatedRequests.toLocaleString()} included estimates)`
+      : "";
     lines.push(
-      `This extension: ${snapshot.tracked.totalTokens.toLocaleString()} tokens across ${snapshot.tracked.requests.toLocaleString()} requests`,
+      `This extension: ${snapshot.tracked.totalTokens.toLocaleString()} tokens across ${snapshot.tracked.requests.toLocaleString()} requests${estimateNote}`,
     );
   }
   if (snapshot.updatedAt) lines.push(`Updated: ${new Date(snapshot.updatedAt).toLocaleString()}`);
@@ -158,19 +175,24 @@ export function formatUsageRows(snapshot: OllamaUsageSnapshot): UsageDisplayRow[
     });
   }
   if (snapshot.tracked) {
+    const estimateNote = snapshot.tracked.estimatedRequests
+      ? ` · ${snapshot.tracked.estimatedRequests.toLocaleString()} included estimates`
+      : "";
     rows.push({
       kind: "tracked",
       label: "Tokens tracked by this extension",
       description: `${snapshot.tracked.totalTokens.toLocaleString()} tokens`,
-      detail: `${snapshot.tracked.promptTokens.toLocaleString()} input + ${snapshot.tracked.completionTokens.toLocaleString()} output across ${snapshot.tracked.requests.toLocaleString()} requests`,
+      detail: `${snapshot.tracked.promptTokens.toLocaleString()} input + ${snapshot.tracked.completionTokens.toLocaleString()} output across ${snapshot.tracked.requests.toLocaleString()} requests${estimateNote}`,
     });
   }
   if (snapshot.lastRequest) {
+    const inputKind = snapshot.lastRequest.promptEstimated ? " estimated" : "";
+    const outputKind = snapshot.lastRequest.completionEstimated ? " estimated" : "";
     rows.push({
       kind: "request",
       label: "Last extension request",
       description: `${snapshot.lastRequest.totalTokens.toLocaleString()} tokens`,
-      detail: `${snapshot.lastRequest.modelId} · ${snapshot.lastRequest.promptTokens.toLocaleString()} input + ${snapshot.lastRequest.completionTokens.toLocaleString()} output`,
+      detail: `${snapshot.lastRequest.modelId} · ${snapshot.lastRequest.promptTokens.toLocaleString()}${inputKind} input + ${snapshot.lastRequest.completionTokens.toLocaleString()}${outputKind} output`,
     });
   }
   if (snapshot.error) {

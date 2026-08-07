@@ -12,6 +12,7 @@ import { convertMessages, convertTools, messageMetrics } from "./convert";
 import { apiError, messageOf } from "./errors";
 import { buildThinkingSchema, resolveThinkValue } from "./model-options";
 import { NdjsonStreamParser, type OllamaStreamEvent } from "./ndjson";
+import { ollamaPromptMetrics } from "./ollama-metrics";
 import {
   mergeAccountUsage,
   recordRequestUsage,
@@ -25,9 +26,17 @@ import {
   validateResponseCompletion,
   type ResponseStreamState,
 } from "./response-state";
+import {
+  createResponseUsageState,
+  observeResponseUsage,
+  resolveResponseUsage,
+  type ResolvedResponseUsage,
+  type ResponseUsageState,
+} from "./response-usage";
 import { estimateInputTokens } from "./token-estimate";
 
 const USAGE_MIME_TYPE = "usage";
+const REQUIRED_TOOL_INSTRUCTION = "You must call at least one of the provided tools before answering. Do not answer directly.";
 
 export interface OllamaCloudModelInformation extends vscode.LanguageModelChatInformation {
   readonly rawModelId: string;
@@ -145,18 +154,22 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     const apiKey = await this.requireApiKey(true);
     const model = this.catalog.get(information.rawModelId);
     if (!model) throw new Error(`Unknown Ollama Cloud model: ${information.rawModelId}`);
-    const requestMetrics = messages.reduce((total, message) => {
-      const metrics = messageMetrics(message);
-      return {
-        textChars: total.textChars + metrics.textChars,
-        imageCount: total.imageCount + metrics.imageCount,
-      };
-    }, { textChars: 0, imageCount: 0 });
-    const requestChars = requestMetrics.textChars;
-    const calibrationChars = requestMetrics.imageCount === 0 ? requestChars : 0;
+    const tools = convertTools(options.tools);
+    const requiresToolCall = tools.length > 0
+      && options.toolMode === vscode.LanguageModelChatToolMode.Required;
+    const think = resolveThinkValue(model, options.modelConfiguration);
+    const convertedMessages = convertMessages(messages);
+    if (tools.length && options.toolMode === vscode.LanguageModelChatToolMode.Required) {
+      convertedMessages.unshift({
+        role: "system",
+        content: REQUIRED_TOOL_INSTRUCTION,
+      });
+    }
+    const promptMetrics = ollamaPromptMetrics(convertedMessages, tools);
+    const calibrationChars = promptMetrics.imageCount === 0 ? promptMetrics.textChars : 0;
     const estimatedInputTokens = Math.max(
       1,
-      estimateInputTokens(requestMetrics, this.charsPerToken.get(model.id) ?? 4),
+      estimateInputTokens(promptMetrics, this.charsPerToken.get(model.id) ?? 4),
     );
     const remainingContextTokens = Math.max(1, model.contextLength - estimatedInputTokens);
     const maxOutputTokens = Math.min(
@@ -164,15 +177,6 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
       remainingContextTokens,
       Math.max(1, this.configuration.get("maxOutputTokens", 65536)),
     );
-    const tools = convertTools(options.tools);
-    const think = resolveThinkValue(model, options.modelConfiguration);
-    const convertedMessages = convertMessages(messages);
-    if (tools.length && options.toolMode === vscode.LanguageModelChatToolMode.Required) {
-      convertedMessages.unshift({
-        role: "system",
-        content: "You must call at least one of the provided tools before answering. Do not answer directly.",
-      });
-    }
     const body = {
       model: model.id,
       messages: convertedMessages,
@@ -196,9 +200,8 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     };
     resetRequestTimeout();
     if (token.isCancellationRequested) controller.abort();
-    const requiresToolCall = tools.length > 0
-      && options.toolMode === vscode.LanguageModelChatToolMode.Required;
     const streamState = createResponseStreamState(randomUUID());
+    const responseUsageState = createResponseUsageState();
     try {
       const response = await fetch(`${OLLAMA_CLOUD_API}/chat`, {
         method: "POST",
@@ -226,14 +229,31 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
         if (chunk.done) break;
         resetRequestTimeout();
         for (const event of parser.push(decoder.decode(chunk.value, { stream: true }))) {
-          this.reportEvent(model, event, progress, calibrationChars, streamState);
+          this.reportEvent(model, event, progress, streamState, responseUsageState);
         }
       }
       for (const event of parser.push(decoder.decode())) {
-        this.reportEvent(model, event, progress, calibrationChars, streamState);
+        this.reportEvent(model, event, progress, streamState, responseUsageState);
       }
       for (const event of parser.finish()) {
-        this.reportEvent(model, event, progress, calibrationChars, streamState);
+        this.reportEvent(model, event, progress, streamState, responseUsageState);
+      }
+      if (streamState.sawDone) {
+        this.reportUsage(
+          model,
+          resolveResponseUsage(
+            responseUsageState,
+            estimatedInputTokens,
+            this.charsPerToken.get(model.id) ?? 4,
+          ),
+          progress,
+          calibrationChars,
+        );
+      }
+      if (streamState.outputLimited) {
+        throw new Error(
+          `${model.id} reached its output limit before completing; increase ollamaCloudCopilot.maxOutputTokens or reduce thinking`,
+        );
       }
       validateResponseCompletion(model.id, streamState, requiresToolCall);
       void this.refreshUsage().catch((error) => {
@@ -360,9 +380,10 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     model: CloudModel,
     event: OllamaStreamEvent,
     progress: vscode.Progress<vscode.LanguageModelResponsePart2>,
-    calibrationChars: number,
     state: ResponseStreamState,
+    usageState: ResponseUsageState,
   ): void {
+    observeResponseUsage(event, usageState);
     const transition = observeResponseEvent(model.id, event, state);
     if (event.thinking) {
       const ThinkingPart = (vscode as unknown as {
@@ -383,39 +404,48 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
         tool.function.arguments,
       ));
     }
-    if (event.promptTokens !== undefined && event.completionTokens !== undefined) {
-      if (calibrationChars > 0 && event.promptTokens > 0) {
-        const observed = calibrationChars / event.promptTokens;
-        const current = this.charsPerToken.get(model.id) ?? 4;
-        this.charsPerToken.set(model.id, current * 0.7 + observed * 0.3);
-      }
-      const usage = toUsagePayload(event.promptTokens, event.completionTokens);
-      this.setUsage(recordRequestUsage(
-        this.usage,
-        model.id,
-        event.promptTokens,
-        event.completionTokens,
-      ));
-      if (this.debugLogging) {
-        this.output.appendLine(
-          `[usage] model=${model.id} input=${usage.prompt_tokens} output=${usage.completion_tokens} total=${usage.total_tokens}`,
-        );
-      }
-      progress.report(new vscode.LanguageModelDataPart(
-        new TextEncoder().encode(JSON.stringify(usage)),
-        USAGE_MIME_TYPE,
-      ));
-    }
     if (event.done) {
       if (this.debugLogging) {
         this.output.appendLine(`[response] model=${model.id} doneReason=${event.doneReason ?? "unspecified"}`);
       }
-      if (transition.outputLimited) {
-        throw new Error(
-          `${model.id} reached its output limit before completing; increase ollamaCloudCopilot.maxOutputTokens or reduce thinking`,
-        );
-      }
     }
+  }
+
+  private reportUsage(
+    model: CloudModel,
+    resolved: ResolvedResponseUsage,
+    progress: vscode.Progress<vscode.LanguageModelResponsePart2>,
+    calibrationChars: number,
+  ): void {
+    if (!resolved.promptEstimated && calibrationChars > 0 && resolved.promptTokens > 0) {
+      const observed = calibrationChars / resolved.promptTokens;
+      const current = this.charsPerToken.get(model.id) ?? 4;
+      this.charsPerToken.set(model.id, current * 0.7 + observed * 0.3);
+    }
+    const usage = toUsagePayload(resolved.promptTokens, resolved.completionTokens);
+    this.setUsage(recordRequestUsage(
+      this.usage,
+      model.id,
+      resolved.promptTokens,
+      resolved.completionTokens,
+      Date.now(),
+      {
+        promptEstimated: resolved.promptEstimated,
+        completionEstimated: resolved.completionEstimated,
+      },
+    ));
+    if (this.debugLogging) {
+      const source = resolved.promptEstimated || resolved.completionEstimated
+        ? resolved.promptEstimated && resolved.completionEstimated ? "estimated" : "mixed"
+        : "exact";
+      this.output.appendLine(
+        `[usage] model=${model.id} input=${usage.prompt_tokens} output=${usage.completion_tokens} total=${usage.total_tokens} source=${source}`,
+      );
+    }
+    progress.report(new vscode.LanguageModelDataPart(
+      new TextEncoder().encode(JSON.stringify(usage)),
+      USAGE_MIME_TYPE,
+    ));
   }
 
   private closeThinking(
