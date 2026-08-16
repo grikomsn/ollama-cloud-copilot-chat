@@ -95,7 +95,7 @@ test("assembles anonymous fragments for a singleton call across events", () => {
   }]);
 });
 
-test("keeps parallel anonymous calls in stable slots across events", () => {
+test("rejects parallel anonymous fragments across events", () => {
   const accumulator = new ToolCallAccumulator();
   accumulator.add([
     { function: { name: "read", arguments: { path: "a" } } },
@@ -106,9 +106,40 @@ test("keeps parallel anonymous calls in stable slots across events", () => {
     { function: { arguments: { line: 8 } } },
   ]);
 
+  assert.deepEqual(accumulator.finish(), {
+    calls: [],
+    error: "Ollama Cloud returned ambiguous unkeyed tool call fragments",
+  });
+});
+
+test("rejects an unkeyed continuation for a keyed call", () => {
+  const accumulator = new ToolCallAccumulator();
+  accumulator.add([{ id: "call-1", index: 0, function: {
+    name: "read",
+    arguments: { path: "a" },
+  } }]);
+  accumulator.add([{ function: { arguments: { line: 4 } } }]);
+
+  assert.deepEqual(accumulator.finish(), {
+    calls: [],
+    error: "Ollama Cloud returned ambiguous unkeyed tool call fragments",
+  });
+});
+
+test("keeps an anonymous continuation separate from a new keyed call", () => {
+  const accumulator = new ToolCallAccumulator();
+  accumulator.add([{ function: { name: "read", arguments: { path: "a" } } }]);
+  accumulator.add([
+    { id: "call-2", index: 1, function: {
+      name: "write",
+      arguments: { path: "b" },
+    } },
+    { function: { arguments: { line: 4 } } },
+  ]);
+
   assert.deepEqual(accumulator.finish().calls, [
     { function: { name: "read", arguments: { path: "a", line: 4 } } },
-    { function: { name: "write", arguments: { path: "b", line: 8 } } },
+    { id: "call-2", index: 1, function: { name: "write", arguments: { path: "b" } } },
   ]);
 });
 
