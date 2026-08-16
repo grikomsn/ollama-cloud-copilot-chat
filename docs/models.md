@@ -4,7 +4,7 @@
 
 The extension discovers the catalog available to the configured account and enriches each entry with authenticated `/api/show` metadata. Live responses provide the context window, architecture, parameter size, quantization, and capabilities used by Copilot Chat. A bundled snapshot keeps model selection useful during transient metadata failures.
 
-The fallback snapshot was last updated on 2026-08-07:
+The fallback snapshot was last updated on 2026-08-16:
 
 | Model | Context | Images | Tools | Thinking |
 | --- | ---: | :---: | :---: | :---: |
@@ -14,7 +14,8 @@ The fallback snapshot was last updated on 2026-08-07:
 | GLM 5.2 | 1M | No | Yes | Off / High / Max |
 | MiniMax M3 | 524K | Yes | Yes | Model-managed |
 | Nemotron 3 Ultra | 262K | No | Yes | On / Off |
-| DeepSeek V4 Pro | 524K | No | Yes | Off / High / Max |
+| DeepSeek V4 Pro Preview | 524K | No | Yes | Off / High / Max |
+| DeepSeek V4 Pro 0813 | 1.049M | No | Yes | Off / High / Max |
 | DeepSeek V4 Flash Preview | 1.049M | No | Yes | Off / High / Max |
 | Gemma 4 31B | 262K | Yes | Yes | On / Off |
 | Qwen 3.5 397B | 262K | Yes | Yes | On / Off |

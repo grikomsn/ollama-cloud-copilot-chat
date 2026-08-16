@@ -18,7 +18,8 @@ function model(id: string, family: string, thinking = true): CloudModel {
 const EXPECTED_PROFILES = new Map<string, readonly string[]>([
   ["deepseek-v4-flash:0731", ["disabled", "high", "max"]],
   ["deepseek-v4-flash:preview", ["disabled", "high", "max"]],
-  ["deepseek-v4-pro", ["disabled", "high", "max"]],
+  ["deepseek-v4-pro:preview", ["disabled", "high", "max"]],
+  ["deepseek-v4-pro:0813", ["disabled", "high", "max"]],
   ["gemma4:31b", ["disabled", "enabled"]],
   ["glm-5.1", ["disabled", "enabled"]],
   ["glm-5.2", ["disabled", "high", "max"]],
@@ -48,12 +49,14 @@ test("GPT-OSS supports only low, medium, and high", () => {
   assert.equal(resolveThinkValue(candidate, { thinkingEffort: "max" }), "medium");
 });
 
-test("DeepSeek V4 supports off, high, and max", () => {
-  const candidate = model("deepseek-v4-pro", "deepseek");
-  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "disabled" }), false);
-  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "high" }), "high");
-  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "max" }), "max");
-  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "low" }), "high");
+test("DeepSeek V4 Pro variants support off, high, and max", () => {
+  for (const id of ["deepseek-v4-pro:preview", "deepseek-v4-pro:0813"]) {
+    const candidate = model(id, "deepseek");
+    assert.equal(resolveThinkValue(candidate, { thinkingEffort: "disabled" }), false, id);
+    assert.equal(resolveThinkValue(candidate, { thinkingEffort: "high" }), "high", id);
+    assert.equal(resolveThinkValue(candidate, { thinkingEffort: "max" }), "max", id);
+    assert.equal(resolveThinkValue(candidate, { thinkingEffort: "low" }), "high", id);
+  }
 });
 
 test("GLM 5.2 defaults to max while GLM 5.1 remains boolean", () => {
