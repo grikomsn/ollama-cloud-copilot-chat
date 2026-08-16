@@ -28,6 +28,7 @@ const EXPECTED_PROFILES = new Map<string, readonly string[]>([
   ["kimi-k2.6", ["disabled", "enabled"]],
   ["kimi-k2.7-code", ["disabled", "enabled"]],
   ["kimi-k3", ["disabled", "low", "high", "max"]],
+  ["minimax-m3", ["default", "low", "medium", "high", "max"]],
   ["nemotron-3-nano:30b", ["disabled", "enabled"]],
   ["nemotron-3-super", ["disabled", "enabled"]],
   ["nemotron-3-ultra", ["disabled", "enabled"]],
@@ -81,8 +82,18 @@ test("boolean models map Off and On to native booleans", () => {
   assert.equal(resolveThinkValue(candidate, { thinkingEffort: "max" }), true);
 });
 
+test("MiniMax M3 preserves its model default and supports exact effort levels", () => {
+  const candidate = model("minimax-m3", "minimax");
+  assert.equal(resolveThinkValue(candidate, undefined), undefined);
+  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "default" }), undefined);
+  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "low" }), "low");
+  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "medium" }), "medium");
+  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "high" }), "high");
+  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "max" }), "max");
+  assert.equal(resolveThinkValue(candidate, { thinkingEffort: "disabled" }), undefined);
+});
+
 test("model-managed, unknown, and non-thinking models expose no control", () => {
-  assert.equal(buildThinkingSchema(model("minimax-m3", "minimax")), undefined);
   assert.equal(resolveThinkValue(model("minimax-m2.7", "minimax"), {}), undefined);
   assert.equal(buildThinkingSchema(model("future-thinking", "future")), undefined);
   assert.equal(buildThinkingSchema(model("mistral-large-3:675b", "mistral", false)), undefined);
