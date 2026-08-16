@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.6
+
+### Patch Changes
+
+- 8ae9983: Refresh the bundled Ollama Cloud model metadata for the current DeepSeek V4 Pro variants.
+
 ## 0.1.5
 
 ### Patch Changes
