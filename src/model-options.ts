@@ -2,7 +2,7 @@ import type { CloudModel } from "./catalog";
 
 export type ThinkValue = boolean | "low" | "medium" | "high" | "max";
 
-type ThinkingChoice = "disabled" | "enabled" | Exclude<ThinkValue, boolean>;
+type ThinkingChoice = "default" | "disabled" | "enabled" | Exclude<ThinkValue, boolean>;
 
 interface ThinkingProfile {
   readonly values: readonly ThinkingChoice[];
@@ -35,6 +35,11 @@ const KIMI_K3_PROFILE: ThinkingProfile = {
   defaultValue: "max",
   title: "Thinking Effort",
 };
+const MINIMAX_M3_PROFILE: ThinkingProfile = {
+  values: ["default", "low", "medium", "high", "max"],
+  defaultValue: "default",
+  title: "Thinking Effort",
+};
 
 const THINKING_PROFILES = new Map<string, ThinkingProfile>([
   ["deepseek-v4-flash:0731", DEEPSEEK_V4_PROFILE],
@@ -49,6 +54,7 @@ const THINKING_PROFILES = new Map<string, ThinkingProfile>([
   ["kimi-k2.6", BOOLEAN_PROFILE],
   ["kimi-k2.7-code", BOOLEAN_PROFILE],
   ["kimi-k3", KIMI_K3_PROFILE],
+  ["minimax-m3", MINIMAX_M3_PROFILE],
   ["nemotron-3-nano:30b", BOOLEAN_PROFILE],
   ["nemotron-3-super", BOOLEAN_PROFILE],
   ["nemotron-3-ultra", BOOLEAN_PROFILE],
@@ -91,12 +97,14 @@ export function resolveThinkValue(
   const value = typeof configured === "string" && profile.values.includes(configured as ThinkingChoice)
     ? configured as ThinkingChoice
     : profile.defaultValue;
+  if (value === "default") return undefined;
   if (value === "disabled") return false;
   if (value === "enabled") return true;
   return value;
 }
 
 function label(value: ThinkingChoice): string {
+  if (value === "default") return "Default";
   if (value === "disabled") return "Off";
   if (value === "enabled") return "On";
   return value.charAt(0).toUpperCase() + value.slice(1);

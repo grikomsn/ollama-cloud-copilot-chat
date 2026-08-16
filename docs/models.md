@@ -12,7 +12,7 @@ The fallback snapshot was last updated on 2026-08-16:
 | Kimi K3 | 1.049M | Yes | Yes | Off / Low / High / Max |
 | Kimi K2.7 Code | 262K | Yes | Yes | On / Off |
 | GLM 5.2 | 1M | No | Yes | Off / High / Max |
-| MiniMax M3 | 524K | Yes | Yes | Model-managed |
+| MiniMax M3 | 524K | Yes | Yes | Default / Low / Medium / High / Max |
 | Nemotron 3 Ultra | 262K | No | Yes | On / Off |
 | DeepSeek V4 Pro Preview | 524K | No | Yes | Off / High / Max |
 | DeepSeek V4 Pro 0813 | 1.049M | No | Yes | Off / High / Max |
@@ -36,7 +36,7 @@ Kimi K3 currently requires an Ollama Pro or Max subscription and consumes extra 
 
 The picker exposes controls only for exact model IDs verified against Ollama Cloud. GPT-OSS supports `low`, `medium`, and `high` and cannot disable thinking. Kimi K3 supports Off plus `low`, `high`, and `max`; its `medium` value behaves as a low-effort alias and is intentionally omitted. GLM 5.2 supports Off, High, and Max; its `low` and `medium` values alias High. DeepSeek V4 supports Off, High, and Max.
 
-Qwen 3.5, GLM 5.1, Kimi K2.6/K2.7 Code, Gemma 4, and Nemotron 3 expose On/Off. Live requests verified that `think: false` suppresses their trace, while their string effort values did not establish distinct ordered levels. MiniMax M3 and M2.7 remain model-managed because Ollama Cloud accepts `think: false` but continues returning a thinking trace. Mistral Large 3 exposes no thinking control because none of the native values produced a trace. A broad `/api/show` `thinking` capability does not grant controls to an unknown or newly discovered model. See [Ollama thinking](https://docs.ollama.com/capabilities/thinking), [DeepSeek V4 Pro](https://ollama.com/library/deepseek-v4-pro), [MiniMax M3](https://ollama.com/library/minimax-m3), and [Kimi K3](https://ollama.com/library/kimi-k3).
+Qwen 3.5, GLM 5.1, Kimi K2.6/K2.7 Code, Gemma 4, and Nemotron 3 expose On/Off. Live requests verified that `think: false` suppresses their trace, while their string effort values did not establish distinct ordered levels. MiniMax M3 exposes Default, Low, Medium, High, and Max: Default omits `think`, preserving the model's adaptive behavior, while the four effort values are forwarded unchanged. Its `think: false` request still returns a trace, so Off is intentionally unavailable. MiniMax M2.7 remains model-managed for the same reason. Mistral Large 3 exposes no thinking control because none of the native values produced a trace. A broad `/api/show` `thinking` capability does not grant controls to an unknown or newly discovered model. See [Ollama thinking](https://docs.ollama.com/capabilities/thinking), [DeepSeek V4 Pro](https://ollama.com/library/deepseek-v4-pro), [MiniMax M3](https://ollama.com/library/minimax-m3), and [Kimi K3](https://ollama.com/library/kimi-k3).
 
 Thinking, visible output, and tool calls all consume the generated-token allowance. The provider reserves output space inside the model's single context budget, reports `done_reason: length` as an actionable error, and never treats an Ollama stream that ends without `done: true` as a successful response.
 
