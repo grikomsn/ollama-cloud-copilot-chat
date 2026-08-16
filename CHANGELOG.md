@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.5
+
+### Patch Changes
+
+- fed1307: Accumulate fragmented native Ollama tool calls before returning them to Copilot Chat.
+
 ## 0.1.4
 
 ### Patch Changes
