@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.8
+
+### Patch Changes
+
+- 33eb890: Expose MiniMax M3's verified Default, Low, Medium, High, and Max thinking-effort choices while preserving the model's adaptive default.
+
 ## 0.1.7
 
 ### Patch Changes
