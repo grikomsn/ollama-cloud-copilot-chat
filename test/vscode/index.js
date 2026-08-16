@@ -80,6 +80,32 @@ async function run() {
   assert.equal(toolCalls[0].name, tool.name);
   assert.equal(toolCalls[0].input.value, "vscode-tool-verified");
 
+  const minimaxModel = registered.find((model) => model.id === "minimax-m3");
+  assert.ok(minimaxModel, "MiniMax M3 is registered for live parallel-tool validation");
+  const parallelResponse = await minimaxModel.sendRequest(
+    [vscode.LanguageModelChatMessage.User(
+      "Call ollama_cloud_editor_test_echo exactly three times in parallel, once with each value: parallel-a, parallel-b, parallel-c. Do not write text.",
+    )],
+    {
+      tools: [tool],
+      toolMode: vscode.LanguageModelChatToolMode.Required,
+    },
+    new vscode.CancellationTokenSource().token,
+  );
+  const parallelCalls = [];
+  for await (const part of parallelResponse.stream) {
+    if (part instanceof vscode.LanguageModelToolCallPart) parallelCalls.push(part);
+  }
+  assert.equal(parallelCalls.length, 3, "MiniMax M3 returns three parallel tool calls");
+  assert.deepEqual(
+    parallelCalls.map((call) => call.input.value).sort(),
+    ["parallel-a", "parallel-b", "parallel-c"],
+  );
+  console.log(JSON.stringify({
+    stage: "minimax_parallel_tool_request",
+    toolCallCount: parallelCalls.length,
+  }));
+
   const followUpResponse = await inferenceModel.sendRequest(
     [
       vscode.LanguageModelChatMessage.User(
