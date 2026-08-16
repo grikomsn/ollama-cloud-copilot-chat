@@ -23,6 +23,7 @@ This extension is a native VS Code `LanguageModelChatProvider`. It validates an 
 - Streaming text and separate thinking parts
 - Verified model-specific thinking controls in the Copilot Chat model picker
 - Image inputs and agent-mode tool calls where supported
+- Optional Ollama Cloud Web Search tool for current web context in agent mode
 - Resilient response token accounting for Copilot's context indicator
 - Status-bar indicator for five-hour and weekly subscription usage
 
@@ -32,6 +33,10 @@ This extension is a native VS Code `LanguageModelChatProvider`. It validates an 
 2. Create a key in [Ollama API keys](https://ollama.com/settings/keys).
 3. Run **Ollama Cloud: Configure API Key** from the Command Palette.
 4. Open Copilot Chat, select **Manage Models**, enable **Ollama Cloud**, then choose a hosted model.
+
+The extension contributes **Ollama Cloud Web Search** to VS Code agent mode. It
+uses the same API key stored in Secret Storage and calls Ollama's hosted web
+search API when the model or user selects the tool.
 
 Click the Ollama status-bar item or run **Ollama Cloud: Show Subscription Usage** to inspect exact five-hour and weekly utilization, per-model request counts, and tokens observed by this extension. Ollama's account limits are GPU/time based rather than token quotas, so account utilization and local token totals are shown separately.
 

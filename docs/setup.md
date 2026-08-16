@@ -17,6 +17,14 @@ The Ollama application and CLI are not required. A paid Copilot plan is not requ
 4. In Copilot Chat, open the model picker, select **Manage Models**, and enable **Ollama Cloud**.
 5. Select an available hosted model.
 
+## Web search tool
+
+The extension contributes **Ollama Cloud Web Search** as a VS Code language-model
+tool. In agent mode, enable or reference `ollamaWebSearch` when you want current
+web context. The tool uses the Ollama API key already stored in VS Code Secret
+Storage and returns titles, URLs, and snippets from Ollama Cloud's web search
+endpoint. Ollama limits each request to 10 results; the default is 5.
+
 The key is validated against the hosted catalog and stored in VS Code Secret Storage. The project `.env` file is only a development convenience and is never read by the extension.
 
 ## Commands

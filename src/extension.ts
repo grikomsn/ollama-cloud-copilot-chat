@@ -3,6 +3,8 @@ import { OllamaCloudAuth } from "./auth";
 import { OLLAMA_CLOUD_API, OLLAMA_CLOUD_ORIGIN } from "./catalog";
 import { messageOf } from "./errors";
 import { OllamaCloudProvider } from "./provider";
+import { OLLAMA_WEB_SEARCH_TOOL_NAME } from "./web-search";
+import { OllamaWebSearchTool } from "./web-search-tool";
 import {
   formatUsageRows,
   formatUsageStatusBar,
@@ -52,6 +54,7 @@ export function activate(
     output,
     usageStatus,
     vscode.lm.registerLanguageModelChatProvider("ollama-cloud", provider),
+    vscode.lm.registerTool(OLLAMA_WEB_SEARCH_TOOL_NAME, new OllamaWebSearchTool(auth)),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("ollamaCloudCopilot")) {
         provider.fireDidChange();
