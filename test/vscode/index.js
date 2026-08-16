@@ -71,10 +71,7 @@ async function run() {
     },
     new vscode.CancellationTokenSource().token,
   );
-  const toolCalls = [];
-  for await (const part of toolResponse.stream) {
-    if (part instanceof vscode.LanguageModelToolCallPart) toolCalls.push(part);
-  }
+  const toolCalls = await collectToolCalls(toolResponse);
   console.log(JSON.stringify({ stage: "tool_request", toolCallCount: toolCalls.length }));
   assert.ok(toolCalls.length >= 1, "VS Code provider returned a native tool call");
   assert.equal(toolCalls[0].name, tool.name);
@@ -92,10 +89,7 @@ async function run() {
     },
     new vscode.CancellationTokenSource().token,
   );
-  const parallelCalls = [];
-  for await (const part of parallelResponse.stream) {
-    if (part instanceof vscode.LanguageModelToolCallPart) parallelCalls.push(part);
-  }
+  const parallelCalls = await collectToolCalls(parallelResponse);
   assert.equal(parallelCalls.length, 3, "MiniMax M3 returns three parallel tool calls");
   assert.deepEqual(
     parallelCalls.map((call) => call.input.value).sort(),
@@ -144,6 +138,14 @@ async function run() {
       weekly: result.weeklyUsage,
     },
   }));
+}
+
+async function collectToolCalls(response) {
+  const calls = [];
+  for await (const part of response.stream) {
+    if (part instanceof vscode.LanguageModelToolCallPart) calls.push(part);
+  }
+  return calls;
 }
 
 module.exports = { run };
