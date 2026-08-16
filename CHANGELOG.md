@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.9
+
+### Patch Changes
+
+- 98548ab: Fix MiniMax M3 native tool-call streaming when fragments omit upstream identities.
+
 ## 0.1.8
 
 ### Patch Changes
