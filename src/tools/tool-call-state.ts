@@ -42,15 +42,16 @@ export class ToolCallAccumulator {
   add(fragments: readonly OllamaToolCallFragment[]): void {
     const existingCalls = [...this.calls];
     const keyedExistingThisEvent = new Set<PendingToolCall>();
-    let hasNewKeyedFragment = false;
+    const keyedFragmentCount = fragments.filter((fragment) => !isUnkeyed(fragment)).length;
+    const allowComplementaryIdentity = keyedFragmentCount === 1;
     for (const fragment of fragments) {
       if (isUnkeyed(fragment)) continue;
-      const existing = this.findExistingCall(fragment, existingCalls);
-      if (existing) {
-        keyedExistingThisEvent.add(existing);
-      } else {
-        hasNewKeyedFragment = true;
-      }
+      const existing = this.findExistingCall(
+        fragment,
+        existingCalls,
+        allowComplementaryIdentity,
+      );
+      if (existing) keyedExistingThisEvent.add(existing);
     }
     const unkeyedCount = fragments.filter((fragment) => isUnkeyed(fragment)).length;
     for (const fragment of fragments) {
@@ -70,7 +71,11 @@ export class ToolCallAccumulator {
           }
         }
       } else {
-        pending = this.findOrCreate(fragment, existingCalls, hasNewKeyedFragment);
+        pending = this.findOrCreate(
+          fragment,
+          existingCalls,
+          allowComplementaryIdentity,
+        );
       }
       this.applyFragment(pending, fragment);
     }
@@ -100,7 +105,7 @@ export class ToolCallAccumulator {
   private findOrCreate(
     fragment: OllamaToolCallFragment,
     existingCalls: readonly PendingToolCall[],
-    hasNewKeyedFragment: boolean,
+    allowComplementaryIdentity: boolean,
   ): PendingToolCall {
     const byId = fragment.id ? this.byId.get(fragment.id) : undefined;
     const byIndex = fragment.index === undefined ? undefined : this.byIndex.get(fragment.index);
@@ -110,7 +115,7 @@ export class ToolCallAccumulator {
     const existing = byId ?? byIndex ?? this.findComplementaryIdentityCandidate(
       fragment,
       existingCalls,
-      hasNewKeyedFragment,
+      allowComplementaryIdentity,
     );
     if (existing) {
       this.attachIdentity(existing, fragment);
@@ -127,7 +132,7 @@ export class ToolCallAccumulator {
   private findComplementaryIdentityCandidate(
     fragment: OllamaToolCallFragment,
     candidateCalls: readonly PendingToolCall[],
-    hasNewKeyedFragment: boolean,
+    allowComplementaryIdentity: boolean,
   ): PendingToolCall | undefined {
     const candidates = candidateCalls.filter((call) => {
       if (isAnonymousPending(call)) return false;
@@ -141,7 +146,7 @@ export class ToolCallAccumulator {
       this.error = "Ollama Cloud returned ambiguous tool-call identities";
       return undefined;
     }
-    if (candidates.length === 1 && hasNewKeyedFragment) {
+    if (candidates.length === 1 && !allowComplementaryIdentity) {
       this.error = "Ollama Cloud returned ambiguous tool-call identities";
       return undefined;
     }
@@ -151,6 +156,7 @@ export class ToolCallAccumulator {
   private findExistingCall(
     fragment: OllamaToolCallFragment,
     existingCalls: readonly PendingToolCall[],
+    allowComplementaryIdentity: boolean,
   ): PendingToolCall | undefined {
     const byId = fragment.id
       ? existingCalls.find((call) => call.id === fragment.id)
@@ -164,7 +170,7 @@ export class ToolCallAccumulator {
     return byId ?? byIndex ?? this.findComplementaryIdentityCandidate(
       fragment,
       existingCalls,
-      false,
+      allowComplementaryIdentity,
     );
   }
 
@@ -173,14 +179,13 @@ export class ToolCallAccumulator {
     unkeyedCount: number,
     keyedExistingThisEvent: ReadonlySet<PendingToolCall>,
   ): PendingToolCall | undefined {
-    const available = existingCalls.filter((call) => !keyedExistingThisEvent.has(call));
+    const available = existingCalls.filter((call) => (
+      isAnonymousPending(call) && !keyedExistingThisEvent.has(call)
+    ));
     if (unkeyedCount !== 1 || available.length !== 1) {
       return undefined;
     }
-    const candidate = available[0];
-    return candidate.id === undefined && candidate.index === undefined
-      ? candidate
-      : undefined;
+    return available[0];
   }
 
   private createPending(): PendingToolCall {
