@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.7
+
+### Patch Changes
+
+- 2ce815c: Add an Ollama Cloud Web Search language-model tool for VS Code agent mode.
+
 ## 0.1.6
 
 ### Patch Changes
