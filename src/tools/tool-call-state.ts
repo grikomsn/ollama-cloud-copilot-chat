@@ -42,16 +42,27 @@ export class ToolCallAccumulator {
   add(fragments: readonly OllamaToolCallFragment[]): void {
     const existingCalls = [...this.calls];
     const keyedExistingThisEvent = new Set<PendingToolCall>();
-    const keyedFragmentCount = fragments.filter((fragment) => !isUnkeyed(fragment)).length;
-    const allowComplementaryIdentity = keyedFragmentCount === 1;
+    const complementaryMatches = new Map<OllamaToolCallFragment, PendingToolCall>();
+    const matchCounts = new Map<PendingToolCall, number>();
+    let hasUnmatchedKeyedFragment = false;
     for (const fragment of fragments) {
       if (isUnkeyed(fragment)) continue;
-      const existing = this.findExistingCall(
-        fragment,
-        existingCalls,
-        allowComplementaryIdentity,
-      );
-      if (existing) keyedExistingThisEvent.add(existing);
+      const existing = this.findExistingCall(fragment, existingCalls, true);
+      if (!existing) {
+        hasUnmatchedKeyedFragment = true;
+        continue;
+      }
+      keyedExistingThisEvent.add(existing);
+      matchCounts.set(existing, (matchCounts.get(existing) ?? 0) + 1);
+      const directlyMatched = (fragment.id !== undefined && fragment.id === existing.id)
+        || (fragment.index !== undefined && fragment.index === existing.index);
+      if (!directlyMatched) complementaryMatches.set(fragment, existing);
+    }
+    const allowedComplementaryFragments = new Set<OllamaToolCallFragment>();
+    if (!hasUnmatchedKeyedFragment) {
+      for (const [fragment, existing] of complementaryMatches) {
+        if (matchCounts.get(existing) === 1) allowedComplementaryFragments.add(fragment);
+      }
     }
     const unkeyedCount = fragments.filter((fragment) => isUnkeyed(fragment)).length;
     for (const fragment of fragments) {
@@ -74,7 +85,7 @@ export class ToolCallAccumulator {
         pending = this.findOrCreate(
           fragment,
           existingCalls,
-          allowComplementaryIdentity,
+          allowedComplementaryFragments.has(fragment),
         );
       }
       this.applyFragment(pending, fragment);

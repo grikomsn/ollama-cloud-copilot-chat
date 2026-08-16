@@ -87,6 +87,30 @@ test("upgrades a partially keyed call with its complementary identity", () => {
   }]);
 });
 
+test("upgrades distinct partial calls in one event", () => {
+  const first = { index: 0, function: { arguments: { line: 4 } } };
+  const second = { id: "call-2", function: { arguments: { line: 8 } } };
+  for (const fragments of [[first, second], [second, first]] as const) {
+    const accumulator = new ToolCallAccumulator();
+    accumulator.add([
+      { id: "call-1", function: { name: "read", arguments: { path: "a" } } },
+      { index: 1, function: { name: "read", arguments: { path: "b" } } },
+    ]);
+    accumulator.add(fragments);
+
+    assert.deepEqual(accumulator.finish().calls, [
+      { id: "call-1", index: 0, function: {
+        name: "read",
+        arguments: { path: "a", line: 4 },
+      } },
+      { id: "call-2", index: 1, function: {
+        name: "read",
+        arguments: { path: "b", line: 8 },
+      } },
+    ]);
+  }
+});
+
 test("assembles anonymous fragments for a singleton call across events", () => {
   const accumulator = new ToolCallAccumulator();
   accumulator.add([{ function: { name: "read", arguments: { path: "a" } } }]);
