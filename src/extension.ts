@@ -47,7 +47,8 @@ export function activate(
     vscode.lm.registerLanguageModelChatProvider("ollama-cloud", provider),
     vscode.lm.registerTool(OLLAMA_WEB_SEARCH_TOOL_NAME, new OllamaWebSearchTool(auth)),
     vscode.workspace.onDidChangeConfiguration((event) => {
-      if (event.affectsConfiguration("ollamaCloudCopilot")) {
+      if (event.affectsConfiguration("ollamaCloudCopilot.maxOutputTokens")
+        || event.affectsConfiguration("ollamaCloudCopilot.catalogCacheMinutes")) {
         provider.fireDidChange();
       }
       if (event.affectsConfiguration("ollamaCloudCopilot.showUsageStatusBar")) {
