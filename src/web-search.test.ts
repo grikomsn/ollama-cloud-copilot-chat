@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { type Fetch } from "./catalog";
 import {
+  createWebSearchRequestCancellation,
   formatOllamaWebSearch,
   searchOllamaWeb,
   type OllamaWebSearchResponse,
@@ -68,4 +69,33 @@ test("formats results for a language-model tool result and bounds large output",
   assert.match(output, /https:\/\/example\.com/);
   assert.match(output, /results truncated/);
   assert.ok(output.length < 12_100);
+});
+
+test("aborts a web search request when cancellation was already requested", () => {
+  const token = {
+    isCancellationRequested: true,
+    onCancellationRequested: () => ({ dispose: () => {} }),
+  };
+
+  const { controller, cancellation } = createWebSearchRequestCancellation(token);
+
+  assert.equal(controller.signal.aborted, true);
+  cancellation.dispose();
+});
+
+test("aborts a web search request when cancellation arrives later", () => {
+  let cancel: (() => void) | undefined;
+  const token = {
+    isCancellationRequested: false,
+    onCancellationRequested: (listener: () => void) => {
+      cancel = listener;
+      return { dispose: () => {} };
+    },
+  };
+
+  const { controller, cancellation } = createWebSearchRequestCancellation(token);
+  assert.equal(controller.signal.aborted, false);
+  cancel?.();
+  assert.equal(controller.signal.aborted, true);
+  cancellation.dispose();
 });

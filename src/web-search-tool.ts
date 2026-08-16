@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { OllamaCloudAuth } from "./auth";
 import {
+  createWebSearchRequestCancellation,
   formatOllamaWebSearch,
   searchOllamaWeb,
   type OllamaWebSearchInput,
@@ -25,8 +26,7 @@ export class OllamaWebSearchTool implements vscode.LanguageModelTool<OllamaWebSe
       throw new Error("Configure an Ollama Cloud API key before using Ollama web search");
     }
 
-    const controller = new AbortController();
-    const cancellation = token.onCancellationRequested(() => controller.abort());
+    const { controller, cancellation } = createWebSearchRequestCancellation(token);
     try {
       const query = options.input.query.trim();
       const response = await searchOllamaWeb(

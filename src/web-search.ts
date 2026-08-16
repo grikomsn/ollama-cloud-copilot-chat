@@ -21,6 +21,20 @@ export interface OllamaWebSearchResponse {
   readonly results: readonly OllamaWebSearchResult[];
 }
 
+export interface WebSearchCancellationToken {
+  readonly isCancellationRequested: boolean;
+  onCancellationRequested(listener: () => void): { dispose(): void };
+}
+
+export function createWebSearchRequestCancellation(
+  token: WebSearchCancellationToken,
+): { controller: AbortController; cancellation: { dispose(): void } } {
+  const controller = new AbortController();
+  const cancellation = token.onCancellationRequested(() => controller.abort());
+  if (token.isCancellationRequested) controller.abort();
+  return { controller, cancellation };
+}
+
 export async function searchOllamaWeb(
   input: OllamaWebSearchInput,
   apiKey: string,
