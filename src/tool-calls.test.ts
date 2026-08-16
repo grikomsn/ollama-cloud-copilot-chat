@@ -48,15 +48,11 @@ test("keeps indexed calls separate when fragments arrive in separate events", ()
   ]);
 });
 
-test("keeps parallel anonymous fragments separate by array slot", () => {
+test("keeps parallel anonymous calls separate within one event", () => {
   const accumulator = new ToolCallAccumulator();
   accumulator.add([
-    { function: { name: "read", arguments: '{"path"' } },
-    { function: { name: "read", arguments: '{"path"' } },
-  ]);
-  accumulator.add([
-    { function: { arguments: ':"a"}' } },
-    { function: { arguments: ':"b"}' } },
+    { function: { name: "read", arguments: { path: "a" } } },
+    { function: { name: "read", arguments: { path: "b" } } },
   ]);
 
   assert.deepEqual(accumulator.finish().calls.map((call) => call.function.arguments), [
@@ -77,6 +73,57 @@ test("upgrades an anonymous slot when a later fragment supplies identity", () =>
   }]);
 });
 
+test("upgrades a partially keyed call with its complementary identity", () => {
+  const accumulator = new ToolCallAccumulator();
+  accumulator.add([{ id: "call-1", function: { name: "read", arguments: '{"path"' } }]);
+  accumulator.add([{ index: 0, function: { arguments: ':"README.md"}' } }]);
+
+  assert.deepEqual(accumulator.finish().calls, [{
+    id: "call-1",
+    index: 0,
+    function: { name: "read", arguments: { path: "README.md" } },
+  }]);
+});
+
+test("rejects anonymous fragments after the first event", () => {
+  const accumulator = new ToolCallAccumulator();
+  accumulator.add([{ function: { name: "read", arguments: { path: "a" } } }]);
+  accumulator.add([{ function: { name: "read", arguments: { path: "b" } } }]);
+
+  assert.deepEqual(accumulator.finish(), {
+    calls: [],
+    error: "Ollama Cloud returned ambiguous unkeyed tool call fragments",
+  });
+});
+
+test("rejects reduced-cardinality anonymous events", () => {
+  const accumulator = new ToolCallAccumulator();
+  accumulator.add([
+    { function: { name: "read", arguments: { path: "a" } } },
+    { function: { name: "read", arguments: { path: "b" } } },
+  ]);
+  accumulator.add([{ function: { name: "read", arguments: { path: "c" } } }]);
+
+  assert.deepEqual(accumulator.finish(), {
+    calls: [],
+    error: "Ollama Cloud returned ambiguous unkeyed tool call fragments",
+  });
+});
+
+test("rejects an ambiguous complementary identity", () => {
+  const accumulator = new ToolCallAccumulator();
+  accumulator.add([
+    { id: "call-1", function: { name: "read", arguments: { path: "a" } } },
+    { id: "call-2", function: { name: "read", arguments: { path: "b" } } },
+  ]);
+  accumulator.add([{ index: 0, function: { arguments: {} } }]);
+
+  assert.deepEqual(accumulator.finish(), {
+    calls: [],
+    error: "Ollama Cloud returned ambiguous tool-call identities",
+  });
+});
+
 test("rejects conflicting unkeyed fragments instead of merging them", () => {
   const accumulator = new ToolCallAccumulator();
   accumulator.add([{ function: { name: "read", arguments: { path: "a" } } }]);
@@ -88,14 +135,15 @@ test("rejects conflicting unkeyed fragments instead of merging them", () => {
   });
 });
 
-test("joins anonymous metadata and argument fragments when no key is supplied", () => {
+test("rejects anonymous metadata and argument fragments across events", () => {
   const accumulator = new ToolCallAccumulator();
   accumulator.add([{ function: { name: "read" } }]);
   accumulator.add([{ function: { arguments: { path: "README.md" } } }]);
 
-  assert.deepEqual(accumulator.finish().calls, [{
-    function: { name: "read", arguments: { path: "README.md" } },
-  }]);
+  assert.deepEqual(accumulator.finish(), {
+    calls: [],
+    error: "Ollama Cloud returned ambiguous unkeyed tool call fragments",
+  });
 });
 
 test("reports incomplete arguments only when the stream is finalized", () => {

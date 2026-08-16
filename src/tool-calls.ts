@@ -23,7 +23,6 @@ export interface ToolCallAccumulatorResult {
 
 interface PendingToolCall {
   readonly order: number;
-  readonly slot: number;
   id?: string;
   index?: number;
   name?: string;
@@ -35,13 +34,19 @@ export class ToolCallAccumulator {
   private readonly calls: PendingToolCall[] = [];
   private readonly byId = new Map<string, PendingToolCall>();
   private readonly byIndex = new Map<number, PendingToolCall>();
-  private readonly bySlot = new Map<number, PendingToolCall>();
   private nextOrder = 0;
   private error?: string;
 
   add(fragments: readonly OllamaToolCallFragment[]): void {
-    for (const [slot, fragment] of fragments.entries()) {
-      const pending = this.findOrCreate(fragment, slot);
+    const touchedThisEvent = new Set<PendingToolCall>();
+    const hadPendingCalls = this.calls.length > 0;
+    for (const fragment of fragments) {
+      if (!fragment.id && fragment.index === undefined && hadPendingCalls) {
+        this.error = "Ollama Cloud returned ambiguous unkeyed tool call fragments";
+        continue;
+      }
+      const pending = this.findOrCreate(fragment, touchedThisEvent);
+      touchedThisEvent.add(pending);
       if (fragment.function.name) pending.name = fragment.function.name;
       if (fragment.function.arguments !== undefined) {
         this.addArguments(pending, fragment.function.arguments);
@@ -70,30 +75,46 @@ export class ToolCallAccumulator {
     return { calls };
   }
 
-  private findOrCreate(fragment: OllamaToolCallFragment, slot: number): PendingToolCall {
+  private findOrCreate(
+    fragment: OllamaToolCallFragment,
+    touchedThisEvent: ReadonlySet<PendingToolCall>,
+  ): PendingToolCall {
     const byId = fragment.id ? this.byId.get(fragment.id) : undefined;
     const byIndex = fragment.index === undefined ? undefined : this.byIndex.get(fragment.index);
-    const bySlot = this.bySlot.get(slot);
-    const keyed = byId ?? byIndex;
-    const hasIdentity = Boolean(fragment.id) || fragment.index !== undefined;
-    const canUpgradeAnonymous = bySlot && !bySlot.id && bySlot.index === undefined;
-    const slotCandidate = !hasIdentity || canUpgradeAnonymous ? bySlot : undefined;
-    const existing = keyed ?? slotCandidate;
     if (byId && byIndex && byId !== byIndex) {
       this.error = "Ollama Cloud returned conflicting tool-call identities";
     }
+    const existing = byId ?? byIndex ?? this.findUpgradeCandidate(fragment, touchedThisEvent);
     if (existing) {
       this.attachIdentity(existing, fragment);
       return existing;
     }
     const pending: PendingToolCall = {
       order: this.nextOrder++,
-      slot,
     };
     this.calls.push(pending);
-    this.bySlot.set(slot, pending);
     this.attachIdentity(pending, fragment);
     return pending;
+  }
+
+  private findUpgradeCandidate(
+    fragment: OllamaToolCallFragment,
+    touchedThisEvent: ReadonlySet<PendingToolCall>,
+  ): PendingToolCall | undefined {
+    if (!fragment.id && fragment.index === undefined) return undefined;
+    const candidates = this.calls.filter((call) => {
+      if (touchedThisEvent.has(call)) return false;
+      if (fragment.id && call.id && call.id !== fragment.id) return false;
+      if (fragment.index !== undefined && call.index !== undefined && call.index !== fragment.index) {
+        return false;
+      }
+      return true;
+    });
+    if (candidates.length > 1) {
+      this.error = "Ollama Cloud returned ambiguous tool-call identities";
+      return undefined;
+    }
+    return candidates[0];
   }
 
   private attachIdentity(pending: PendingToolCall, fragment: OllamaToolCallFragment): void {
@@ -122,7 +143,6 @@ export class ToolCallAccumulator {
     this.calls.length = 0;
     this.byId.clear();
     this.byIndex.clear();
-    this.bySlot.clear();
     this.error = undefined;
   }
 
