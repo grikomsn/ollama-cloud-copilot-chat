@@ -68,6 +68,20 @@ test("flushes a fragmented string tool call with the completed response", () => 
   }]);
 });
 
+test("flushes anonymous tool fragments across events", () => {
+  const parser = new NdjsonStreamParser();
+  assert.deepEqual(parser.push(
+    '{"message":{"tool_calls":[{"function":{"name":"read","arguments":{"path":"README.md"}}}]},"done":false}\n'
+      + '{"message":{"tool_calls":[{"function":{"arguments":{"line":4}}}]},"done":false}\n'
+      + '{"done":true}\n',
+  ), [{
+    toolCalls: [{
+      function: { name: "read", arguments: { path: "README.md", line: 4 } },
+    }],
+    done: true,
+  }]);
+});
+
 test("rejects invalid tool arguments when the stream completes", () => {
   const parser = new NdjsonStreamParser();
   assert.deepEqual(parser.push(
