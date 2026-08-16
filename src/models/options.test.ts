@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { fallbackModels, type CloudModel } from "./catalog";
-import { buildThinkingSchema, resolveThinkValue } from "./model-options";
+import { buildThinkingSchema, resolveThinkValue } from "./options";
 
 function model(id: string, family: string, thinking = true): CloudModel {
   return {

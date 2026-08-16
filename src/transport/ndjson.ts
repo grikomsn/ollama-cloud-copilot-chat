@@ -2,9 +2,9 @@ import {
   ToolCallAccumulator,
   type OllamaToolCall,
   type OllamaToolCallFragment,
-} from "./tool-calls";
+} from "../tools/tool-call-state";
 
-export type { OllamaToolCall, OllamaToolCallFragment } from "./tool-calls";
+export type { OllamaToolCall, OllamaToolCallFragment } from "../tools/tool-call-state";
 
 export interface OllamaStreamEvent {
   readonly text?: string;

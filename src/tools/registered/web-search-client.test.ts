@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { type Fetch } from "./catalog";
+import { type Fetch } from "../../models/catalog";
 import {
   createWebSearchRequestCancellation,
   formatOllamaWebSearch,
   searchOllamaWeb,
   type OllamaWebSearchResponse,
-} from "./web-search";
+} from "./web-search-client";
 
 test("posts a bounded Ollama web search request and parses results", async () => {
   let request: { input: string | URL | Request; init?: RequestInit } | undefined;

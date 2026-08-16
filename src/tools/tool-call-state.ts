@@ -1,3 +1,5 @@
+// Ollama may split a single client-tool call across multiple NDJSON events.
+// This state is transport parsing, not execution of the selected tool.
 export interface OllamaToolCallFragment {
   readonly id?: string;
   readonly index?: number;

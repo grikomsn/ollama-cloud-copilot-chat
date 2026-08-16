@@ -1,4 +1,4 @@
-import type { MessageMetrics } from "./convert";
+import type { MessageMetrics } from "./messages";
 
 export const ESTIMATED_IMAGE_TOKENS = 1024;
 

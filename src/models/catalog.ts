@@ -1,7 +1,6 @@
-import { apiError } from "./errors";
+import { apiError } from "../errors";
+import { OLLAMA_ENDPOINTS, ollamaHeaders } from "../transport/protocol";
 
-export const OLLAMA_CLOUD_ORIGIN = "https://ollama.com";
-export const OLLAMA_CLOUD_API = `${OLLAMA_CLOUD_ORIGIN}/api`;
 export const CATALOG_CACHE_KEY = "ollamaCloudCopilot.modelCatalog.v1";
 export const TOKEN_PRICING = "Included with Ollama Cloud subscription · no per-token API charge";
 
@@ -108,8 +107,8 @@ export class ModelCatalog {
   }
 
   async refresh(apiKey: string, signal?: AbortSignal): Promise<CloudModel[]> {
-    const headers = requestHeaders(apiKey);
-    const response = await this.fetchImpl(`${OLLAMA_CLOUD_API}/tags`, { headers, signal });
+    const headers = ollamaHeaders(apiKey);
+    const response = await this.fetchImpl(OLLAMA_ENDPOINTS.models, { headers, signal });
     if (!response.ok) throw await apiError("Unable to list Ollama Cloud models", response);
     const payload = await response.json() as TagsPayload;
     const ids = unique((payload.models ?? []).flatMap((entry) => {
@@ -123,7 +122,7 @@ export class ModelCatalog {
     const hydrated = await mapConcurrent(ids, 4, async (id) => {
       const fallback = SNAPSHOT_BY_ID.get(id);
       try {
-        const show = await this.fetchImpl(`${OLLAMA_CLOUD_API}/show`, {
+        const show = await this.fetchImpl(OLLAMA_ENDPOINTS.model, {
           method: "POST",
           headers,
           body: JSON.stringify({ model: id, verbose: true }),
@@ -266,14 +265,6 @@ function unknownSnapshot(id: string): SnapshotModel {
     contextLength: 32768,
     maxOutputTokens: 32768,
     capabilities: "completion",
-  };
-}
-
-function requestHeaders(apiKey: string): Record<string, string> {
-  return {
-    Authorization: `Bearer ${apiKey}`,
-    "Content-Type": "application/json",
-    Accept: "application/json",
   };
 }
 
