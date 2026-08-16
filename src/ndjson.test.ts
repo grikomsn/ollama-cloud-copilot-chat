@@ -2,24 +2,20 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { NdjsonStreamParser } from "./ndjson";
 
-test("parses fragmented text, thinking, tools, and final usage", () => {
+test("parses fragmented text, thinking, accumulated tools, and final usage", () => {
   const parser = new NdjsonStreamParser();
   assert.deepEqual(parser.push('{"message":{"thinking":"let'), []);
   assert.deepEqual(parser.push(' me"},"done":false}\n{"message":{"content":"answer"},"done":false}\n'), [
     { thinking: "let me" },
     { text: "answer" },
   ]);
-  assert.deepEqual(parser.push('{"message":{"tool_calls":[{"function":{"name":"read","arguments":{"path":"x"}}}]},"done":false}\n'), [
-    {
-      toolCalls: [{
-        function: { name: "read", arguments: { path: "x" } },
-      }],
-    },
-  ]);
-  assert.deepEqual(parser.push('{"done":true,"prompt_eval_count":11,"eval_count":7}'), []);
-  assert.deepEqual(parser.finish(), [{
+  assert.deepEqual(parser.push('{"message":{"tool_calls":[{"function":{"name":"read","arguments":{"path":"x"}}}]},"done":false}\n'), []);
+  assert.deepEqual(parser.push('{"done":true,"prompt_eval_count":11,"eval_count":7}\n'), [{
     promptTokens: 11,
     completionTokens: 7,
+    toolCalls: [{
+      function: { name: "read", arguments: { path: "x" } },
+    }],
     done: true,
   }]);
 });
@@ -46,24 +42,36 @@ test("accepts a final line without a newline", () => {
   assert.deepEqual(parser.finish(), [{ text: "tail" }]);
 });
 
-test("surfaces streamed API errors and string tool arguments", () => {
+test("accumulates string tool arguments and surfaces streamed API errors", () => {
   const parser = new NdjsonStreamParser();
   assert.deepEqual(parser.push(
-    "{\"message\":{\"tool_calls\":[{\"function\":{\"name\":\"read\",\"arguments\":\"{\\\"path\\\":\\\"x\\\"}\"}}]}}\n"
+    "{\"message\":{\"tool_calls\":[{\"id\":\"call-1\",\"function\":{\"name\":\"read\",\"arguments\":\"{\\\"path\\\"\"}}]}}\n"
+      + "{\"message\":{\"tool_calls\":[{\"id\":\"call-1\",\"function\":{\"arguments\":\":\\\"x\\\"}\"}}]},\"done\":false}\n"
       + "{\"error\":\"model retired\"}\n",
   ), [
-    {
-      toolCalls: [{
-        function: { name: "read", arguments: { path: "x" } },
-      }],
-    },
     { error: "model retired" },
   ]);
 });
 
-test("rejects invalid completed tool arguments", () => {
+test("flushes a fragmented string tool call with the completed response", () => {
   const parser = new NdjsonStreamParser();
   assert.deepEqual(parser.push(
-    '{"message":{"tool_calls":[{"function":{"name":"read","arguments":"{broken"}}]}}\n',
-  ), [{ error: "Ollama Cloud returned invalid arguments for tool read" }]);
+    "{\"message\":{\"tool_calls\":[{\"id\":\"call-1\",\"function\":{\"name\":\"read\",\"arguments\":\"{\\\"path\\\"\"}}]}}\n"
+      + "{\"message\":{\"tool_calls\":[{\"id\":\"call-1\",\"function\":{\"arguments\":\":\\\"x\\\"}\"}}]},\"done\":false}\n"
+      + "{\"done\":true}\n",
+  ), [{
+    toolCalls: [{
+      id: "call-1",
+      function: { name: "read", arguments: { path: "x" } },
+    }],
+    done: true,
+  }]);
+});
+
+test("rejects invalid tool arguments when the stream completes", () => {
+  const parser = new NdjsonStreamParser();
+  assert.deepEqual(parser.push(
+    '{"message":{"tool_calls":[{"function":{"name":"read","arguments":"{broken"}}]}}\n'
+      + '{"done":true}\n',
+  ), [{ error: "Ollama Cloud returned invalid arguments for tool read", done: true }]);
 });

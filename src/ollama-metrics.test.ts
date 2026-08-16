@@ -7,7 +7,11 @@ test("counts serialized message, tool, and framing characters", () => {
     [{
       role: "assistant",
       content: "answer",
-      tool_calls: [{ id: "call-1", function: { name: "lookup", arguments: { q: "value" } } }],
+      tool_calls: [{
+        id: "call-1",
+        type: "function",
+        function: { index: 0, name: "lookup", arguments: { q: "value" } },
+      }],
     }],
     [{ type: "function", function: { name: "lookup", parameters: { type: "object" } } }],
   );

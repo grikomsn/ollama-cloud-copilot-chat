@@ -1,10 +1,10 @@
-export interface OllamaToolCall {
-  readonly id?: string;
-  readonly function: {
-    readonly name: string;
-    readonly arguments: Record<string, unknown>;
-  };
-}
+import {
+  ToolCallAccumulator,
+  type OllamaToolCall,
+  type OllamaToolCallFragment,
+} from "./tool-calls";
+
+export type { OllamaToolCall, OllamaToolCallFragment } from "./tool-calls";
 
 export interface OllamaStreamEvent {
   readonly text?: string;
@@ -32,6 +32,7 @@ interface NativeChunk {
 
 export class NdjsonStreamParser {
   private buffer = "";
+  private readonly toolCalls = new ToolCallAccumulator();
 
   push(chunk: string): OllamaStreamEvent[] {
     this.buffer += chunk;
@@ -40,7 +41,7 @@ export class NdjsonStreamParser {
     while ((boundary = this.buffer.indexOf("\n")) >= 0) {
       const line = this.buffer.slice(0, boundary).trim();
       this.buffer = this.buffer.slice(boundary + 1);
-      const event = parseLine(line);
+      const event = this.normalize(parseLine(line));
       if (event) events.push(event);
     }
     return events;
@@ -49,12 +50,29 @@ export class NdjsonStreamParser {
   finish(): OllamaStreamEvent[] {
     const line = this.buffer.trim();
     this.buffer = "";
-    const event = parseLine(line);
+    const event = this.normalize(parseLine(line));
     return event ? [event] : [];
+  }
+
+  private normalize(event: ParsedStreamEvent | undefined): OllamaStreamEvent | undefined {
+    if (!event) return undefined;
+    if (event.toolCalls?.length) this.toolCalls.add(event.toolCalls);
+    const { toolCalls: _fragments, ...withoutToolCalls } = event;
+    if (!event.done) return hasEventData(withoutToolCalls) ? withoutToolCalls : undefined;
+    const result = this.toolCalls.finish();
+    return {
+      ...withoutToolCalls,
+      ...(result.calls.length ? { toolCalls: result.calls } : {}),
+      ...(result.error ? { error: result.error } : {}),
+    };
   }
 }
 
-function parseLine(line: string): OllamaStreamEvent | undefined {
+type ParsedStreamEvent = Omit<OllamaStreamEvent, "toolCalls"> & {
+  readonly toolCalls?: readonly OllamaToolCallFragment[];
+};
+
+function parseLine(line: string): ParsedStreamEvent | undefined {
   if (!line) return undefined;
   let chunk: NativeChunk;
   try {
@@ -93,38 +111,36 @@ function parseLine(line: string): OllamaStreamEvent | undefined {
   };
 }
 
-function parseToolCalls(value: unknown): { calls: OllamaToolCall[]; error?: string } {
+function parseToolCalls(value: unknown): { calls: OllamaToolCallFragment[]; error?: string } {
   if (value === undefined) return { calls: [] };
   if (!Array.isArray(value)) {
     return { calls: [], error: "Ollama Cloud returned malformed tool calls" };
   }
-  const calls: OllamaToolCall[] = [];
+  const calls: OllamaToolCallFragment[] = [];
   for (const item of value) {
-    if (!isRecord(item) || !isRecord(item.function) || typeof item.function.name !== "string") {
+    if (!isRecord(item) || !isRecord(item.function)) {
       return { calls: [], error: "Ollama Cloud returned malformed tool calls" };
     }
-    const args = parseArguments(item.function.arguments);
-    if (!args) {
-      return { calls: [], error: `Ollama Cloud returned invalid arguments for tool ${item.function.name}` };
+    if (item.function.name !== undefined && typeof item.function.name !== "string") {
+      return { calls: [], error: "Ollama Cloud returned malformed tool calls" };
+    }
+    if (item.function.arguments !== undefined
+      && typeof item.function.arguments !== "string"
+      && !isRecord(item.function.arguments)) {
+      return { calls: [], error: "Ollama Cloud returned malformed tool calls" };
     }
     calls.push({
       ...(typeof item.id === "string" && item.id ? { id: item.id } : {}),
-      function: { name: item.function.name, arguments: args },
+      ...(typeof item.function.index === "number" && Number.isInteger(item.function.index)
+        && item.function.index >= 0 ? { index: item.function.index } : {}),
+      function: {
+        ...(typeof item.function.name === "string" && item.function.name
+          ? { name: item.function.name } : {}),
+        ...(item.function.arguments === undefined ? {} : { arguments: item.function.arguments }),
+      },
     });
   }
   return { calls };
-}
-
-function parseArguments(value: unknown): Record<string, unknown> | undefined {
-  if (isRecord(value)) return value;
-  if (value === undefined || value === "") return {};
-  if (typeof value !== "string") return undefined;
-  try {
-    const parsed = JSON.parse(value) as unknown;
-    return isRecord(parsed) ? parsed : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 function count(value: unknown): number | undefined {
@@ -133,4 +149,9 @@ function count(value: unknown): number | undefined {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function hasEventData(event: Omit<ParsedStreamEvent, "toolCalls">): boolean {
+  return Boolean(event.text || event.thinking || event.promptTokens !== undefined
+    || event.completionTokens !== undefined || event.error || event.done || event.doneReason);
 }

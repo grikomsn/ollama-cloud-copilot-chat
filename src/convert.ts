@@ -11,7 +11,9 @@ export interface OllamaMessage {
 
 export interface OllamaRequestToolCall {
   readonly id?: string;
+  readonly type: "function";
   readonly function: {
+    readonly index: number;
     readonly name: string;
     readonly arguments: Record<string, unknown>;
   };
@@ -96,7 +98,9 @@ function convertMessage(
     } else if (part instanceof vscode.LanguageModelToolCallPart) {
       toolCalls.push({
         id: part.callId,
+        type: "function",
         function: {
+          index: toolCalls.length,
           name: part.name,
           arguments: record(part.input),
         },

@@ -48,6 +48,59 @@ async function run() {
   assert.equal(usageParts.length, 1, "the provider emits exactly one usage part");
   assert.ok(usageParts[0].prompt_tokens > 0, "usage includes prompt tokens");
   assert.ok(usageParts[0].completion_tokens > 0, "usage includes completion tokens");
+
+  const tool = {
+    name: "ollama_cloud_editor_test_echo",
+    description: "Return a supplied verification value for the editor integration test.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        value: { type: "string", description: "The verification value to return." },
+      },
+      required: ["value"],
+      additionalProperties: false,
+    },
+  };
+  const toolResponse = await inferenceModel.sendRequest(
+    [vscode.LanguageModelChatMessage.User(
+      "Call ollama_cloud_editor_test_echo exactly once with value vscode-tool-verified. Then reply with exactly tool-result-verified. Do not answer until you call it.",
+    )],
+    {
+      tools: [tool],
+      toolMode: vscode.LanguageModelChatToolMode.Required,
+    },
+    new vscode.CancellationTokenSource().token,
+  );
+  const toolCalls = [];
+  for await (const part of toolResponse.stream) {
+    if (part instanceof vscode.LanguageModelToolCallPart) toolCalls.push(part);
+  }
+  console.log(JSON.stringify({ stage: "tool_request", toolCallCount: toolCalls.length }));
+  assert.ok(toolCalls.length >= 1, "VS Code provider returned a native tool call");
+  assert.equal(toolCalls[0].name, tool.name);
+  assert.equal(toolCalls[0].input.value, "vscode-tool-verified");
+
+  const followUpResponse = await inferenceModel.sendRequest(
+    [
+      vscode.LanguageModelChatMessage.User(
+        "Call ollama_cloud_editor_test_echo exactly once with value vscode-tool-verified. Then reply with exactly tool-result-verified.",
+      ),
+      vscode.LanguageModelChatMessage.Assistant(toolCalls),
+      vscode.LanguageModelChatMessage.User(toolCalls.map((call) =>
+        new vscode.LanguageModelToolResultPart(call.callId, [
+          new vscode.LanguageModelTextPart("tool-result-verified"),
+        ]),
+      )),
+    ],
+    { tools: [tool] },
+    new vscode.CancellationTokenSource().token,
+  );
+  let followUpText = "";
+  for await (const part of followUpResponse.stream) {
+    if (part instanceof vscode.LanguageModelTextPart) followUpText += part.value;
+  }
+  console.log(JSON.stringify({ stage: "tool_follow_up", textCharacters: followUpText.length }));
+  assert.match(followUpText, /tool-result-verified/);
   const commands = await vscode.commands.getCommands(true);
   assert.ok(commands.includes("ollamaCloudCopilot.showUsage"));
   assert.ok(commands.includes("ollamaCloudCopilot.openUsage"));
@@ -58,6 +111,8 @@ async function run() {
     inferenceModel: result.model,
     inferenceCharacters: result.text.length,
     registeredModelCount: registered.length,
+    toolCallCount: toolCalls.length,
+    followUpCharacters: followUpText.length,
     usageWindows: {
       session: result.sessionUsage,
       weekly: result.weeklyUsage,
