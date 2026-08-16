@@ -128,21 +128,22 @@ test("rejects an unkeyed continuation for a keyed call", () => {
   });
 });
 
-test("keeps an anonymous continuation separate from a new keyed call", () => {
-  const accumulator = new ToolCallAccumulator();
-  accumulator.add([{ function: { name: "read", arguments: { path: "a" } } }]);
-  accumulator.add([
-    { id: "call-2", index: 1, function: {
-      name: "write",
-      arguments: { path: "b" },
-    } },
-    { function: { arguments: { line: 4 } } },
-  ]);
+test("matches mixed keyed and anonymous continuations independent of fragment order", () => {
+  const keyed = { id: "call-2", index: 1, function: {
+    name: "write",
+    arguments: { path: "b" },
+  } };
+  const anonymous = { function: { arguments: { line: 4 } } };
+  for (const fragments of [[keyed, anonymous], [anonymous, keyed]] as const) {
+    const accumulator = new ToolCallAccumulator();
+    accumulator.add([{ function: { name: "read", arguments: { path: "a" } } }]);
+    accumulator.add(fragments);
 
-  assert.deepEqual(accumulator.finish().calls, [
-    { function: { name: "read", arguments: { path: "a", line: 4 } } },
-    { id: "call-2", index: 1, function: { name: "write", arguments: { path: "b" } } },
-  ]);
+    assert.deepEqual(accumulator.finish().calls, [
+      { function: { name: "read", arguments: { path: "a", line: 4 } } },
+      { id: "call-2", index: 1, function: { name: "write", arguments: { path: "b" } } },
+    ]);
+  }
 });
 
 test("rejects a keyed upgrade when multiple calls are pending", () => {
@@ -154,10 +155,6 @@ test("rejects a keyed upgrade when multiple calls are pending", () => {
       arguments: { path: "b" },
     } },
   ]);
-  accumulator.add([{ id: "call-3", index: 2, function: {
-    name: "read",
-    arguments: { path: "c" },
-  } }]);
   accumulator.add([{ id: "call-1", index: 0, function: {
     arguments: { line: 4 },
   } }]);
@@ -166,6 +163,33 @@ test("rejects a keyed upgrade when multiple calls are pending", () => {
     calls: [],
     error: "Ollama Cloud returned ambiguous tool-call identities",
   });
+});
+
+test("rejects multiple new keyed calls after an anonymous call", () => {
+  const accumulator = new ToolCallAccumulator();
+  accumulator.add([{ function: { name: "read", arguments: { path: "a" } } }]);
+  accumulator.add([
+    { id: "call-2", index: 1, function: { name: "read", arguments: { path: "b" } } },
+    { id: "call-3", index: 2, function: { name: "read", arguments: { path: "c" } } },
+  ]);
+
+  assert.deepEqual(accumulator.finish(), {
+    calls: [],
+    error: "Ollama Cloud returned ambiguous tool-call identities",
+  });
+});
+
+test("does not merge complementary identities created in one event", () => {
+  const accumulator = new ToolCallAccumulator();
+  accumulator.add([
+    { id: "call-1", function: { name: "read", arguments: { path: "a" } } },
+    { index: 0, function: { name: "read", arguments: { path: "b" } } },
+  ]);
+
+  assert.deepEqual(accumulator.finish().calls, [
+    { id: "call-1", function: { name: "read", arguments: { path: "a" } } },
+    { index: 0, function: { name: "read", arguments: { path: "b" } } },
+  ]);
 });
 
 test("rejects reduced-cardinality anonymous events", () => {
