@@ -120,6 +120,42 @@
         "displayName": "Ollama Cloud",
         "managementCommand": "ollamaCloudCopilot.manage"
       }
+    ],
+    "languageModelTools": [
+      {
+        "name": "ollama-cloud_web-search",
+        "tags": [
+          "web",
+          "search",
+          "ollama-cloud"
+        ],
+        "toolReferenceName": "ollamaWebSearch",
+        "displayName": "Ollama Cloud Web Search",
+        "modelDescription": "Search the public web through Ollama Cloud and use the returned titles, URLs, and content snippets as current context. Requires an Ollama Cloud API key.",
+        "userDescription": "Search the public web through Ollama Cloud.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(globe)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "The web search query."
+            },
+            "max_results": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "default": 5,
+              "description": "The maximum number of results to return."
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false
+        }
+      }
     ]
   },
   "scripts": {
