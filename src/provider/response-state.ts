@@ -1,4 +1,4 @@
-import type { OllamaStreamEvent } from "./ndjson";
+import type { OllamaStreamEvent } from "../transport/ndjson";
 
 export interface ResponseStreamState {
   sawDone: boolean;

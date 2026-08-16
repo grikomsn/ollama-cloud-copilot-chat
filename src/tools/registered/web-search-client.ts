@@ -1,5 +1,6 @@
-import { type Fetch, OLLAMA_CLOUD_API } from "./catalog";
-import { apiError } from "./errors";
+import { type Fetch } from "../../models/catalog";
+import { apiError } from "../../errors";
+import { OLLAMA_ENDPOINTS, ollamaHeaders } from "../../transport/protocol";
 
 export const OLLAMA_WEB_SEARCH_TOOL_NAME = "ollama-cloud_web-search";
 const DEFAULT_MAX_RESULTS = 5;
@@ -46,13 +47,9 @@ export async function searchOllamaWeb(
   if (!apiKey.trim()) throw new Error("Ollama Cloud API key is not configured");
 
   const maxResults = normalizeMaxResults(input.max_results);
-  const response = await fetchImpl(`${OLLAMA_CLOUD_API}/web_search`, {
+  const response = await fetchImpl(OLLAMA_ENDPOINTS.webSearch, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
+    headers: ollamaHeaders(apiKey),
     body: JSON.stringify({ query, max_results: maxResults }),
     signal,
   });

@@ -1,4 +1,4 @@
-import type { MessageMetrics, OllamaMessage, OllamaTool } from "./convert";
+import type { MessageMetrics, OllamaMessage, OllamaTool } from "./messages";
 
 export function ollamaPromptMetrics(
   messages: readonly OllamaMessage[],

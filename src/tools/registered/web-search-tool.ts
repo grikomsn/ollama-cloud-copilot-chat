@@ -1,11 +1,11 @@
 import * as vscode from "vscode";
-import { OllamaCloudAuth } from "./auth";
+import { OllamaCloudAuth } from "../../auth/auth";
 import {
   createWebSearchRequestCancellation,
   formatOllamaWebSearch,
   searchOllamaWeb,
   type OllamaWebSearchInput,
-} from "./web-search";
+} from "./web-search-client";
 
 export class OllamaWebSearchTool implements vscode.LanguageModelTool<OllamaWebSearchInput> {
   constructor(private readonly auth: OllamaCloudAuth) {}

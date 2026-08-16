@@ -1,4 +1,4 @@
-import type { OllamaStreamEvent, OllamaToolCall } from "./ndjson";
+import type { OllamaStreamEvent, OllamaToolCall } from "../transport/ndjson";
 import { estimateInputTokens } from "./token-estimate";
 
 export interface ResponseUsageState {

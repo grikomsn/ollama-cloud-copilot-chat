@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ollamaPromptMetrics } from "./ollama-metrics";
+import { ollamaPromptMetrics } from "./metrics";
 
 test("counts serialized message, tool, and framing characters", () => {
   const metrics = ollamaPromptMetrics(

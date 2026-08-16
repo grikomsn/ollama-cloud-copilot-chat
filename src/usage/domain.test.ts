@@ -6,7 +6,7 @@ import {
   mergeAccountUsage,
   recordRequestUsage,
   toUsagePayload,
-} from "./usage";
+} from "./domain";
 
 test("maps native Ollama counts to provider usage data", () => {
   assert.deepEqual(toUsagePayload(12, 7), {

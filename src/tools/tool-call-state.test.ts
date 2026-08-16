@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ToolCallAccumulator } from "./tool-calls";
+import { ToolCallAccumulator } from "./tool-call-state";
 
 test("assembles fragmented arguments into one native tool call", () => {
   const accumulator = new ToolCallAccumulator();
