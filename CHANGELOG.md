@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.10
+
+### Patch Changes
+
+- a5cdad0: Fix MiniMax M3 parallel tool calls when distinct call IDs reuse an upstream index.
+
 ## 0.1.9
 
 ### Patch Changes
