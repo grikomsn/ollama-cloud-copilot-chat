@@ -22,23 +22,26 @@ export interface ToolCallAccumulatorResult {
 }
 
 interface PendingToolCall {
-  readonly key: string;
   readonly order: number;
-  readonly id?: string;
-  readonly index?: number;
+  readonly slot: number;
+  id?: string;
+  index?: number;
   name?: string;
   arguments?: Record<string, unknown>;
   argumentsText?: string;
-  argumentsComplete: boolean;
 }
 
 export class ToolCallAccumulator {
-  private readonly calls = new Map<string, PendingToolCall>();
+  private readonly calls: PendingToolCall[] = [];
+  private readonly byId = new Map<string, PendingToolCall>();
+  private readonly byIndex = new Map<number, PendingToolCall>();
+  private readonly bySlot = new Map<number, PendingToolCall>();
   private nextOrder = 0;
+  private error?: string;
 
   add(fragments: readonly OllamaToolCallFragment[]): void {
-    for (const fragment of fragments) {
-      const pending = this.findOrCreate(fragment);
+    for (const [slot, fragment] of fragments.entries()) {
+      const pending = this.findOrCreate(fragment, slot);
       if (fragment.function.name) pending.name = fragment.function.name;
       if (fragment.function.arguments !== undefined) {
         this.addArguments(pending, fragment.function.arguments);
@@ -47,8 +50,10 @@ export class ToolCallAccumulator {
   }
 
   finish(): ToolCallAccumulatorResult {
-    const pending = [...this.calls.values()].sort((left, right) => left.order - right.order);
-    this.calls.clear();
+    const pending = [...this.calls].sort((left, right) => left.order - right.order);
+    const error = this.error;
+    this.reset();
+    if (error) return { calls: [], error };
     const calls: OllamaToolCall[] = [];
     for (const call of pending) {
       if (!call.name) return { calls: [], error: "Ollama Cloud returned a tool call without a name" };
@@ -65,30 +70,60 @@ export class ToolCallAccumulator {
     return { calls };
   }
 
-  private findOrCreate(fragment: OllamaToolCallFragment): PendingToolCall {
-    const key = fragment.id
-      ? `id:${fragment.id}`
-      : fragment.index === undefined
-        ? this.findAnonymousKey()
-        : `index:${fragment.index}`;
-    const existing = this.calls.get(key);
-    if (existing) return existing;
+  private findOrCreate(fragment: OllamaToolCallFragment, slot: number): PendingToolCall {
+    const byId = fragment.id ? this.byId.get(fragment.id) : undefined;
+    const byIndex = fragment.index === undefined ? undefined : this.byIndex.get(fragment.index);
+    const bySlot = this.bySlot.get(slot);
+    const keyed = byId ?? byIndex;
+    const hasIdentity = Boolean(fragment.id) || fragment.index !== undefined;
+    const canUpgradeAnonymous = bySlot && !bySlot.id && bySlot.index === undefined;
+    const slotCandidate = !hasIdentity || canUpgradeAnonymous ? bySlot : undefined;
+    const existing = keyed ?? slotCandidate;
+    if (byId && byIndex && byId !== byIndex) {
+      this.error = "Ollama Cloud returned conflicting tool-call identities";
+    }
+    if (existing) {
+      this.attachIdentity(existing, fragment);
+      return existing;
+    }
     const pending: PendingToolCall = {
-      key,
       order: this.nextOrder++,
-      ...(fragment.id ? { id: fragment.id } : {}),
-      ...(fragment.index === undefined ? {} : { index: fragment.index }),
-      argumentsComplete: false,
+      slot,
     };
-    this.calls.set(key, pending);
+    this.calls.push(pending);
+    this.bySlot.set(slot, pending);
+    this.attachIdentity(pending, fragment);
     return pending;
   }
 
-  private findAnonymousKey(): string {
-    const pending = [...this.calls.values()]
-      .filter((call) => call.key.startsWith("anonymous:") && !call.argumentsComplete)
-      .sort((left, right) => right.order - left.order)[0];
-    return pending?.key ?? `anonymous:${this.nextOrder}`;
+  private attachIdentity(pending: PendingToolCall, fragment: OllamaToolCallFragment): void {
+    if (fragment.id) {
+      if (pending.id && pending.id !== fragment.id) {
+        this.error = "Ollama Cloud returned conflicting tool-call identities";
+      } else {
+        pending.id = fragment.id;
+        this.byId.set(fragment.id, pending);
+      }
+    }
+    if (fragment.index !== undefined) {
+      if (pending.index !== undefined && pending.index !== fragment.index) {
+        this.error = "Ollama Cloud returned conflicting tool-call identities";
+      } else {
+        pending.index = fragment.index;
+        this.byIndex.set(fragment.index, pending);
+      }
+    }
+    if (pending.name && fragment.function.name && pending.name !== fragment.function.name) {
+      this.error = "Ollama Cloud returned ambiguous unkeyed tool call fragments";
+    }
+  }
+
+  private reset(): void {
+    this.calls.length = 0;
+    this.byId.clear();
+    this.byIndex.clear();
+    this.bySlot.clear();
+    this.error = undefined;
   }
 
   private addArguments(
@@ -100,14 +135,10 @@ export class ToolCallAccumulator {
       const parsed = parseArguments(pending.argumentsText);
       if (parsed) {
         pending.arguments = parsed;
-        pending.argumentsComplete = true;
-      } else {
-        pending.argumentsComplete = false;
       }
       return;
     }
     pending.arguments = { ...pending.arguments, ...value };
-    pending.argumentsComplete = true;
   }
 }
 
