@@ -200,6 +200,27 @@ test("does not merge complementary identities created in one event", () => {
   ]);
 });
 
+test("rejects complementary identity ambiguity with a new keyed call", () => {
+  const newKeyed = { id: "new", function: {
+    name: "write",
+    arguments: { path: "new" },
+  } };
+  const complementary = { index: 0, function: { arguments: { line: 4 } } };
+  for (const fragments of [[newKeyed, complementary], [complementary, newKeyed]] as const) {
+    const accumulator = new ToolCallAccumulator();
+    accumulator.add([{ id: "old", function: {
+      name: "read",
+      arguments: { path: "old" },
+    } }]);
+    accumulator.add(fragments);
+
+    assert.deepEqual(accumulator.finish(), {
+      calls: [],
+      error: "Ollama Cloud returned ambiguous tool-call identities",
+    });
+  }
+});
+
 test("rejects reduced-cardinality anonymous events", () => {
   const accumulator = new ToolCallAccumulator();
   accumulator.add([

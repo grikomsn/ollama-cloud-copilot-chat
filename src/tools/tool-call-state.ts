@@ -42,10 +42,15 @@ export class ToolCallAccumulator {
   add(fragments: readonly OllamaToolCallFragment[]): void {
     const existingCalls = [...this.calls];
     const keyedExistingThisEvent = new Set<PendingToolCall>();
+    let hasNewKeyedFragment = false;
     for (const fragment of fragments) {
       if (isUnkeyed(fragment)) continue;
       const existing = this.findExistingCall(fragment, existingCalls);
-      if (existing) keyedExistingThisEvent.add(existing);
+      if (existing) {
+        keyedExistingThisEvent.add(existing);
+      } else {
+        hasNewKeyedFragment = true;
+      }
     }
     const unkeyedCount = fragments.filter((fragment) => isUnkeyed(fragment)).length;
     for (const fragment of fragments) {
@@ -65,7 +70,7 @@ export class ToolCallAccumulator {
           }
         }
       } else {
-        pending = this.findOrCreate(fragment, existingCalls);
+        pending = this.findOrCreate(fragment, existingCalls, hasNewKeyedFragment);
       }
       this.applyFragment(pending, fragment);
     }
@@ -95,6 +100,7 @@ export class ToolCallAccumulator {
   private findOrCreate(
     fragment: OllamaToolCallFragment,
     existingCalls: readonly PendingToolCall[],
+    hasNewKeyedFragment: boolean,
   ): PendingToolCall {
     const byId = fragment.id ? this.byId.get(fragment.id) : undefined;
     const byIndex = fragment.index === undefined ? undefined : this.byIndex.get(fragment.index);
@@ -104,6 +110,7 @@ export class ToolCallAccumulator {
     const existing = byId ?? byIndex ?? this.findComplementaryIdentityCandidate(
       fragment,
       existingCalls,
+      hasNewKeyedFragment,
     );
     if (existing) {
       this.attachIdentity(existing, fragment);
@@ -120,6 +127,7 @@ export class ToolCallAccumulator {
   private findComplementaryIdentityCandidate(
     fragment: OllamaToolCallFragment,
     candidateCalls: readonly PendingToolCall[],
+    hasNewKeyedFragment: boolean,
   ): PendingToolCall | undefined {
     const candidates = candidateCalls.filter((call) => {
       if (isAnonymousPending(call)) return false;
@@ -130,6 +138,10 @@ export class ToolCallAccumulator {
       return true;
     });
     if (candidates.length > 1) {
+      this.error = "Ollama Cloud returned ambiguous tool-call identities";
+      return undefined;
+    }
+    if (candidates.length === 1 && hasNewKeyedFragment) {
       this.error = "Ollama Cloud returned ambiguous tool-call identities";
       return undefined;
     }
@@ -149,7 +161,11 @@ export class ToolCallAccumulator {
     if (byId && byIndex && byId !== byIndex) {
       this.error = "Ollama Cloud returned conflicting tool-call identities";
     }
-    return byId ?? byIndex ?? this.findComplementaryIdentityCandidate(fragment, existingCalls);
+    return byId ?? byIndex ?? this.findComplementaryIdentityCandidate(
+      fragment,
+      existingCalls,
+      false,
+    );
   }
 
   private findUnkeyedCall(
