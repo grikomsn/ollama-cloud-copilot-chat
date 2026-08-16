@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.11
+
+### Patch Changes
+
+- 84a6531: Simplify streamed tool-call state handling and deduplicate VS Code acceptance-test collection without changing provider behavior.
+
 ## 0.1.10
 
 ### Patch Changes
