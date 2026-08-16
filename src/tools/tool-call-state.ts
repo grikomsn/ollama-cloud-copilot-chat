@@ -119,7 +119,8 @@ export class ToolCallAccumulator {
     allowComplementaryIdentity: boolean,
   ): PendingToolCall {
     const byId = fragment.id ? this.byId.get(fragment.id) : undefined;
-    const byIndex = fragment.index === undefined ? undefined : this.byIndex.get(fragment.index);
+    const indexed = fragment.index === undefined ? undefined : this.byIndex.get(fragment.index);
+    const byIndex = hasDifferentStableId(indexed, fragment.id) ? undefined : indexed;
     if (byId && byIndex && byId !== byIndex) {
       this.error = "Ollama Cloud returned conflicting tool-call identities";
     }
@@ -172,9 +173,10 @@ export class ToolCallAccumulator {
     const byId = fragment.id
       ? existingCalls.find((call) => call.id === fragment.id)
       : undefined;
-    const byIndex = fragment.index === undefined
+    const indexed = fragment.index === undefined
       ? undefined
       : existingCalls.find((call) => call.index === fragment.index);
+    const byIndex = hasDifferentStableId(indexed, fragment.id) ? undefined : indexed;
     if (byId && byIndex && byId !== byIndex) {
       this.error = "Ollama Cloud returned conflicting tool-call identities";
     }
@@ -231,6 +233,10 @@ export class ToolCallAccumulator {
       }
     }
     if (fragment.index !== undefined) {
+      const indexed = this.byIndex.get(fragment.index);
+      if (hasDifferentStableId(indexed, fragment.id)) {
+        return;
+      }
       if (pending.index !== undefined && pending.index !== fragment.index) {
         this.error = "Ollama Cloud returned conflicting tool-call identities";
       } else {
@@ -264,6 +270,15 @@ export class ToolCallAccumulator {
     }
     pending.arguments = { ...pending.arguments, ...value };
   }
+}
+
+function hasDifferentStableId(
+  pending: PendingToolCall | undefined,
+  fragmentId: string | undefined,
+): boolean {
+  return fragmentId !== undefined
+    && pending?.id !== undefined
+    && pending.id !== fragmentId;
 }
 
 function parseArguments(value: string | undefined): Record<string, unknown> | undefined {

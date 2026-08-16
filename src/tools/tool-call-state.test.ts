@@ -37,6 +37,34 @@ test("keeps parallel indexed calls separate", () => {
   ]);
 });
 
+test("keeps stable-ID calls separate when upstream reuses an index", () => {
+  const accumulator = new ToolCallAccumulator();
+  accumulator.add([
+    { id: "call-1", index: 0, function: {
+      name: "read",
+      arguments: { path: "a" },
+    } },
+    { id: "call-2", index: 0, function: {
+      name: "read",
+      arguments: { path: "b" },
+    } },
+  ]);
+  accumulator.add([{ id: "call-2", index: 0, function: {
+    arguments: { line: 4 },
+  } }]);
+
+  assert.deepEqual(accumulator.finish().calls, [
+    { id: "call-1", index: 0, function: {
+      name: "read",
+      arguments: { path: "a" },
+    } },
+    { id: "call-2", function: {
+      name: "read",
+      arguments: { path: "b", line: 4 },
+    } },
+  ]);
+});
+
 test("keeps indexed calls separate when fragments arrive in separate events", () => {
   const accumulator = new ToolCallAccumulator();
   accumulator.add([{ index: 0, function: { name: "read", arguments: { path: "a" } } }]);
