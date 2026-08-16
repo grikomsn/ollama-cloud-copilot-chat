@@ -40,7 +40,6 @@ export class ToolCallAccumulator {
   private error?: string;
 
   add(fragments: readonly OllamaToolCallFragment[]): void {
-    const touchedThisEvent = new Set<PendingToolCall>();
     const keyedThisEvent = new Set<PendingToolCall>();
     const existingCalls = [...this.calls];
     const unkeyedCount = fragments.filter((fragment) => isUnkeyed(fragment)).length;
@@ -61,10 +60,9 @@ export class ToolCallAccumulator {
           }
         }
       } else {
-        pending = this.findOrCreate(fragment, touchedThisEvent, unkeyedCount === 0);
+        pending = this.findOrCreate(fragment, existingCalls);
         keyedThisEvent.add(pending);
       }
-      touchedThisEvent.add(pending);
       this.applyFragment(pending, fragment);
     }
   }
@@ -92,26 +90,42 @@ export class ToolCallAccumulator {
 
   private findOrCreate(
     fragment: OllamaToolCallFragment,
-    touchedThisEvent: ReadonlySet<PendingToolCall>,
-    allowAnonymousUpgrade: boolean,
+    existingCalls: readonly PendingToolCall[],
   ): PendingToolCall {
     const byId = fragment.id ? this.byId.get(fragment.id) : undefined;
     const byIndex = fragment.index === undefined ? undefined : this.byIndex.get(fragment.index);
     if (byId && byIndex && byId !== byIndex) {
       this.error = "Ollama Cloud returned conflicting tool-call identities";
     }
-    const existing = byId ?? byIndex ?? this.findUpgradeCandidate(
-      fragment,
-      touchedThisEvent,
-      allowAnonymousUpgrade,
-    );
+    const existing = byId ?? byIndex ?? this.findComplementaryIdentityCandidate(fragment);
     if (existing) {
       this.attachIdentity(existing, fragment);
       return existing;
     }
+    if (existingCalls.length > 1 && existingCalls.some(isAnonymousPending)) {
+      this.error = "Ollama Cloud returned ambiguous tool-call identities";
+    }
     const pending = this.createPending();
     this.attachIdentity(pending, fragment);
     return pending;
+  }
+
+  private findComplementaryIdentityCandidate(
+    fragment: OllamaToolCallFragment,
+  ): PendingToolCall | undefined {
+    const candidates = this.calls.filter((call) => {
+      if (isAnonymousPending(call)) return false;
+      if (fragment.id && call.id && call.id !== fragment.id) return false;
+      if (fragment.index !== undefined && call.index !== undefined && call.index !== fragment.index) {
+        return false;
+      }
+      return true;
+    });
+    if (candidates.length > 1) {
+      this.error = "Ollama Cloud returned ambiguous tool-call identities";
+      return undefined;
+    }
+    return candidates[0];
   }
 
   private findUnkeyedCall(
@@ -149,30 +163,6 @@ export class ToolCallAccumulator {
     if (fragment.function.arguments !== undefined) {
       this.addArguments(pending, fragment.function.arguments);
     }
-  }
-
-  private findUpgradeCandidate(
-    fragment: OllamaToolCallFragment,
-    touchedThisEvent: ReadonlySet<PendingToolCall>,
-    allowAnonymousUpgrade: boolean,
-  ): PendingToolCall | undefined {
-    if (!fragment.id && fragment.index === undefined) return undefined;
-    const candidates = this.calls.filter((call) => {
-      if (touchedThisEvent.has(call)) return false;
-      if (!allowAnonymousUpgrade && call.id === undefined && call.index === undefined) {
-        return false;
-      }
-      if (fragment.id && call.id && call.id !== fragment.id) return false;
-      if (fragment.index !== undefined && call.index !== undefined && call.index !== fragment.index) {
-        return false;
-      }
-      return true;
-    });
-    if (candidates.length > 1) {
-      this.error = "Ollama Cloud returned ambiguous tool-call identities";
-      return undefined;
-    }
-    return candidates[0];
   }
 
   private attachIdentity(pending: PendingToolCall, fragment: OllamaToolCallFragment): void {
@@ -232,6 +222,10 @@ function parseArguments(value: string | undefined): Record<string, unknown> | un
 
 function isUnkeyed(fragment: OllamaToolCallFragment): boolean {
   return !fragment.id && fragment.index === undefined;
+}
+
+function isAnonymousPending(call: PendingToolCall): boolean {
+  return call.id === undefined && call.index === undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

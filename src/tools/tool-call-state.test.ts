@@ -61,16 +61,18 @@ test("keeps parallel anonymous calls separate within one event", () => {
   ]);
 });
 
-test("upgrades an anonymous slot when a later fragment supplies identity", () => {
+test("keeps an anonymous call separate when a later fragment supplies identity", () => {
   const accumulator = new ToolCallAccumulator();
-  accumulator.add([{ function: { name: "read", arguments: '{"path"' } }]);
-  accumulator.add([{ id: "call-1", index: 0, function: { arguments: ':"README.md"}' } }]);
+  accumulator.add([{ function: { name: "read", arguments: { path: "a" } } }]);
+  accumulator.add([{ id: "call-1", index: 0, function: {
+    name: "read",
+    arguments: { path: "b" },
+  } }]);
 
-  assert.deepEqual(accumulator.finish().calls, [{
-    id: "call-1",
-    index: 0,
-    function: { name: "read", arguments: { path: "README.md" } },
-  }]);
+  assert.deepEqual(accumulator.finish().calls, [
+    { function: { name: "read", arguments: { path: "a" } } },
+    { id: "call-1", index: 0, function: { name: "read", arguments: { path: "b" } } },
+  ]);
 });
 
 test("upgrades a partially keyed call with its complementary identity", () => {
@@ -141,6 +143,29 @@ test("keeps an anonymous continuation separate from a new keyed call", () => {
     { function: { name: "read", arguments: { path: "a", line: 4 } } },
     { id: "call-2", index: 1, function: { name: "write", arguments: { path: "b" } } },
   ]);
+});
+
+test("rejects a keyed upgrade when multiple calls are pending", () => {
+  const accumulator = new ToolCallAccumulator();
+  accumulator.add([
+    { function: { name: "read", arguments: { path: "a" } } },
+    { id: "call-2", index: 1, function: {
+      name: "read",
+      arguments: { path: "b" },
+    } },
+  ]);
+  accumulator.add([{ id: "call-3", index: 2, function: {
+    name: "read",
+    arguments: { path: "c" },
+  } }]);
+  accumulator.add([{ id: "call-1", index: 0, function: {
+    arguments: { line: 4 },
+  } }]);
+
+  assert.deepEqual(accumulator.finish(), {
+    calls: [],
+    error: "Ollama Cloud returned ambiguous tool-call identities",
+  });
 });
 
 test("rejects reduced-cardinality anonymous events", () => {
