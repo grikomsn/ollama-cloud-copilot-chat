@@ -130,18 +130,26 @@ test("rejects an unkeyed continuation for a keyed call", () => {
 
 test("matches mixed keyed and anonymous continuations independent of fragment order", () => {
   const keyed = { id: "call-2", index: 1, function: {
-    name: "write",
-    arguments: { path: "b" },
+    arguments: { encoding: "utf-8" },
   } };
   const anonymous = { function: { arguments: { line: 4 } } };
   for (const fragments of [[keyed, anonymous], [anonymous, keyed]] as const) {
     const accumulator = new ToolCallAccumulator();
-    accumulator.add([{ function: { name: "read", arguments: { path: "a" } } }]);
+    accumulator.add([
+      { function: { name: "read", arguments: { path: "a" } } },
+      { id: "call-2", index: 1, function: {
+        name: "write",
+        arguments: { path: "b" },
+      } },
+    ]);
     accumulator.add(fragments);
 
     assert.deepEqual(accumulator.finish().calls, [
       { function: { name: "read", arguments: { path: "a", line: 4 } } },
-      { id: "call-2", index: 1, function: { name: "write", arguments: { path: "b" } } },
+      { id: "call-2", index: 1, function: {
+        name: "write",
+        arguments: { path: "b", encoding: "utf-8" },
+      } },
     ]);
   }
 });
