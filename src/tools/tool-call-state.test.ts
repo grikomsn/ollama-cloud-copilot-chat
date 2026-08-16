@@ -85,15 +85,31 @@ test("upgrades a partially keyed call with its complementary identity", () => {
   }]);
 });
 
-test("rejects anonymous fragments after the first event", () => {
+test("assembles anonymous fragments for a singleton call across events", () => {
   const accumulator = new ToolCallAccumulator();
   accumulator.add([{ function: { name: "read", arguments: { path: "a" } } }]);
-  accumulator.add([{ function: { name: "read", arguments: { path: "b" } } }]);
+  accumulator.add([{ function: { arguments: { line: 4 } } }]);
 
-  assert.deepEqual(accumulator.finish(), {
-    calls: [],
-    error: "Ollama Cloud returned ambiguous unkeyed tool call fragments",
-  });
+  assert.deepEqual(accumulator.finish().calls, [{
+    function: { name: "read", arguments: { path: "a", line: 4 } },
+  }]);
+});
+
+test("keeps parallel anonymous calls in stable slots across events", () => {
+  const accumulator = new ToolCallAccumulator();
+  accumulator.add([
+    { function: { name: "read", arguments: { path: "a" } } },
+    { function: { name: "write", arguments: { path: "b" } } },
+  ]);
+  accumulator.add([
+    { function: { arguments: { line: 4 } } },
+    { function: { arguments: { line: 8 } } },
+  ]);
+
+  assert.deepEqual(accumulator.finish().calls, [
+    { function: { name: "read", arguments: { path: "a", line: 4 } } },
+    { function: { name: "write", arguments: { path: "b", line: 8 } } },
+  ]);
 });
 
 test("rejects reduced-cardinality anonymous events", () => {
@@ -135,15 +151,14 @@ test("rejects conflicting unkeyed fragments instead of merging them", () => {
   });
 });
 
-test("rejects anonymous metadata and argument fragments across events", () => {
+test("merges anonymous metadata and argument fragments across events", () => {
   const accumulator = new ToolCallAccumulator();
   accumulator.add([{ function: { name: "read" } }]);
   accumulator.add([{ function: { arguments: { path: "README.md" } } }]);
 
-  assert.deepEqual(accumulator.finish(), {
-    calls: [],
-    error: "Ollama Cloud returned ambiguous unkeyed tool call fragments",
-  });
+  assert.deepEqual(accumulator.finish().calls, [{
+    function: { name: "read", arguments: { path: "README.md" } },
+  }]);
 });
 
 test("reports incomplete arguments only when the stream is finalized", () => {

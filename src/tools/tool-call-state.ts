@@ -25,6 +25,7 @@ export interface ToolCallAccumulatorResult {
 
 interface PendingToolCall {
   readonly order: number;
+  readonly anonymousSlot?: number;
   id?: string;
   index?: number;
   name?: string;
@@ -37,22 +38,38 @@ export class ToolCallAccumulator {
   private readonly byId = new Map<string, PendingToolCall>();
   private readonly byIndex = new Map<number, PendingToolCall>();
   private nextOrder = 0;
+  private nextAnonymousSlot = 0;
   private error?: string;
 
   add(fragments: readonly OllamaToolCallFragment[]): void {
     const touchedThisEvent = new Set<PendingToolCall>();
-    const hadPendingCalls = this.calls.length > 0;
+    const keyedThisEvent = new Set<PendingToolCall>();
+    const existingCalls = [...this.calls];
+    const unkeyedCount = fragments.filter((fragment) => isUnkeyed(fragment)).length;
+    let unkeyedPosition = 0;
     for (const fragment of fragments) {
-      if (!fragment.id && fragment.index === undefined && hadPendingCalls) {
-        this.error = "Ollama Cloud returned ambiguous unkeyed tool call fragments";
-        continue;
+      let pending: PendingToolCall | undefined;
+      if (isUnkeyed(fragment)) {
+        pending = this.findUnkeyedCall(
+          existingCalls,
+          unkeyedCount,
+          unkeyedPosition++,
+          keyedThisEvent,
+        );
+        if (!pending) {
+          if (existingCalls.length === 0) {
+            pending = this.createPending(this.nextAnonymousSlot++);
+          } else {
+            this.error = "Ollama Cloud returned ambiguous unkeyed tool call fragments";
+            continue;
+          }
+        }
+      } else {
+        pending = this.findOrCreate(fragment, touchedThisEvent);
+        keyedThisEvent.add(pending);
       }
-      const pending = this.findOrCreate(fragment, touchedThisEvent);
       touchedThisEvent.add(pending);
-      if (fragment.function.name) pending.name = fragment.function.name;
-      if (fragment.function.arguments !== undefined) {
-        this.addArguments(pending, fragment.function.arguments);
-      }
+      this.applyFragment(pending, fragment);
     }
   }
 
@@ -91,12 +108,48 @@ export class ToolCallAccumulator {
       this.attachIdentity(existing, fragment);
       return existing;
     }
-    const pending: PendingToolCall = {
-      order: this.nextOrder++,
-    };
-    this.calls.push(pending);
+    const pending = this.createPending();
     this.attachIdentity(pending, fragment);
     return pending;
+  }
+
+  private findUnkeyedCall(
+    existingCalls: readonly PendingToolCall[],
+    unkeyedCount: number,
+    unkeyedPosition: number,
+    keyedThisEvent: ReadonlySet<PendingToolCall>,
+  ): PendingToolCall | undefined {
+    const available = existingCalls.filter((call) => !keyedThisEvent.has(call));
+    if (unkeyedCount === 1 && available.length === 1) return available[0];
+
+    const anonymous = available
+      .filter((call) => call.anonymousSlot !== undefined)
+      .sort((left, right) => left.anonymousSlot! - right.anonymousSlot!);
+    if (anonymous.length !== unkeyedCount) return undefined;
+    return anonymous[unkeyedPosition];
+  }
+
+  private createPending(anonymousSlot?: number): PendingToolCall {
+    const pending: PendingToolCall = {
+      order: this.nextOrder++,
+      ...(anonymousSlot === undefined ? {} : { anonymousSlot }),
+    };
+    this.calls.push(pending);
+    return pending;
+  }
+
+  private applyFragment(
+    pending: PendingToolCall,
+    fragment: OllamaToolCallFragment,
+  ): void {
+    if (pending.name && fragment.function.name && pending.name !== fragment.function.name) {
+      this.error = "Ollama Cloud returned ambiguous unkeyed tool call fragments";
+    } else if (fragment.function.name) {
+      pending.name = fragment.function.name;
+    }
+    if (fragment.function.arguments !== undefined) {
+      this.addArguments(pending, fragment.function.arguments);
+    }
   }
 
   private findUpgradeCandidate(
@@ -145,6 +198,7 @@ export class ToolCallAccumulator {
     this.calls.length = 0;
     this.byId.clear();
     this.byIndex.clear();
+    this.nextAnonymousSlot = 0;
     this.error = undefined;
   }
 
@@ -172,6 +226,10 @@ function parseArguments(value: string | undefined): Record<string, unknown> | un
   } catch {
     return undefined;
   }
+}
+
+function isUnkeyed(fragment: OllamaToolCallFragment): boolean {
+  return !fragment.id && fragment.index === undefined;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
