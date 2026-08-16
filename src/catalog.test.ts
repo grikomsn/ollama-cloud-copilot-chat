@@ -22,7 +22,7 @@ class MemoryCache implements CatalogCache {
 
 test("fallback catalog includes current cloud models and rich capabilities", () => {
   const models = fallbackModels();
-  assert.equal(models.length, 18);
+  assert.equal(models.length, 19);
   const deepseek = models.find((model) => model.id === "deepseek-v4-flash:0731");
   assert.equal(deepseek?.contextLength, 1048576);
   assert.equal(deepseek?.maxOutputTokens, 384000);
@@ -35,6 +35,23 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
   assert.equal(models.some((model) => model.id === "minimax-m2.5"), false);
   assert.equal(models.some((model) => model.id === "deepseek-v4-flash"), false);
   assert.equal(models.some((model) => model.id === "deepseek-v4-flash:preview"), true);
+  assert.equal(models.some((model) => model.id === "deepseek-v4-pro"), false);
+  const deepseekProPreview = models.find((model) => model.id === "deepseek-v4-pro:preview");
+  assert.equal(deepseekProPreview?.contextLength, 524288);
+  assert.equal(deepseekProPreview?.maxOutputTokens, 384000);
+  assert.deepEqual(deepseekProPreview?.capabilities, {
+    imageInput: false,
+    toolCalling: true,
+    thinking: true,
+  });
+  const deepseekPro0813 = models.find((model) => model.id === "deepseek-v4-pro:0813");
+  assert.equal(deepseekPro0813?.contextLength, 1048576);
+  assert.equal(deepseekPro0813?.maxOutputTokens, 384000);
+  assert.deepEqual(deepseekPro0813?.capabilities, {
+    imageInput: false,
+    toolCalling: true,
+    thinking: true,
+  });
   const kimi = models.find((model) => model.id === "kimi-k3");
   assert.equal(kimi?.contextLength, 1048576);
   assert.equal(kimi?.maxOutputTokens, 262144);
