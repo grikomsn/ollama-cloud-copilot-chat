@@ -6,6 +6,7 @@ declare module "vscode" {
 
   export interface LanguageModelChatInformation {
     readonly requiresAuthorization?: true | { label: string };
+    readonly pricing?: string;
     readonly isUserSelectable?: boolean;
     readonly configurationSchema?: LanguageModelConfigurationSchema;
     readonly targetChatSessionType?: string;
@@ -26,6 +27,7 @@ declare module "vscode" {
     readonly properties?: {
       readonly [key: string]: Record<string, unknown> & {
         readonly enumItemLabels?: string[];
+        readonly enumDescriptions?: string[];
         readonly group?: string;
       };
     };
@@ -48,6 +50,7 @@ declare module "vscode" {
   }
 
   export interface PrepareLanguageModelChatModelOptions {
+    readonly silent?: boolean;
     readonly configuration?: { readonly [key: string]: unknown };
   }
 }

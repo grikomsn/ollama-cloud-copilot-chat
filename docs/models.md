@@ -4,6 +4,8 @@
 
 The extension discovers the catalog available to the configured account and enriches each entry with authenticated `/api/show` metadata. Live responses provide the context window, architecture, parameter size, quantization, and capabilities used by Copilot Chat. A bundled snapshot keeps model selection useful during transient metadata failures.
 
+Authenticated `/api/tags` and `/api/show` metadata remains authoritative. Fields those endpoints omit are enriched from the canonical `ollama-cloud` provider in a six-hour models.dev snapshot stored in VS Code `globalState`. Stale metadata is returned immediately while refresh runs and remains available during models.dev outages.
+
 The fallback snapshot was last updated on 2026-08-16:
 
 | Model | Context | Images | Tools | Thinking |
@@ -34,9 +36,9 @@ Kimi K3 currently requires an Ollama Pro or Max subscription and consumes extra 
 
 ## Thinking
 
-The picker exposes controls only for exact model IDs verified against Ollama Cloud. GPT-OSS supports `low`, `medium`, and `high` and cannot disable thinking. Kimi K3 supports Off plus `low`, `high`, and `max`; its `medium` value behaves as a low-effort alias and is intentionally omitted. GLM 5.2 supports Off, High, and Max; its `low` and `medium` values alias High. DeepSeek V4 supports Off, High, and Max.
+The picker exposes a shared **Reasoning Effort** control only for exact model IDs verified against Ollama Cloud. GPT-OSS supports `low`, `medium`, and `high` and cannot disable thinking. Kimi K3 supports Off plus `low`, `high`, and `max`; its `medium` value behaves as a low-effort alias and is intentionally omitted. GLM 5.2 supports Off, High, and Max; its `low` and `medium` values alias High. DeepSeek V4 supports Off, High, and Max.
 
-Qwen 3.5, GLM 5.1, Kimi K2.6/K2.7 Code, Gemma 4, and Nemotron 3 expose On/Off. Live requests verified that `think: false` suppresses their trace, while their string effort values did not establish distinct ordered levels. MiniMax M3 exposes Default, Low, Medium, High, and Max: Default omits `think`, preserving the model's adaptive behavior, while the four effort values are forwarded unchanged. Its `think: false` request still returns a trace, so Off is intentionally unavailable. MiniMax M2.7 remains model-managed for the same reason. Mistral Large 3 exposes no thinking control because none of the native values produced a trace. A broad `/api/show` `thinking` capability does not grant controls to an unknown or newly discovered model. See [Ollama thinking](https://docs.ollama.com/capabilities/thinking), [DeepSeek V4 Pro](https://ollama.com/library/deepseek-v4-pro), [MiniMax M3](https://ollama.com/library/minimax-m3), and [Kimi K3](https://ollama.com/library/kimi-k3).
+Qwen 3.5, GLM 5.1, Kimi K2.6/K2.7 Code, Gemma 4, and Nemotron 3 expose On/Off and default On. Live requests verified that `think: false` suppresses their trace, while their string effort values did not establish distinct ordered levels. Ordered controls default High. MiniMax M3 exposes Default, Low, Medium, High, and Max: High is selected initially, while an explicit Default omits `think` and restores the model's adaptive behavior. Its `think: false` request still returns a trace, so Off is intentionally unavailable. MiniMax M2.7 remains model-managed for the same reason. Mistral Large 3 exposes no thinking control because none of the native values produced a trace. A broad `/api/show` `thinking` capability does not grant controls to an unknown or newly discovered model. See [Ollama thinking](https://docs.ollama.com/capabilities/thinking), [DeepSeek V4 Pro](https://ollama.com/library/deepseek-v4-pro), [MiniMax M3](https://ollama.com/library/minimax-m3), and [Kimi K3](https://ollama.com/library/kimi-k3).
 
 Thinking, visible output, and tool calls all consume the generated-token allowance. The provider reserves output space inside the model's single context budget, reports `done_reason: length` as an actionable error, and never treats an Ollama stream that ends without `done: true` as a successful response.
 

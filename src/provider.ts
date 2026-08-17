@@ -167,17 +167,22 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
 
     const controller = new AbortController();
     const timeoutSeconds = Math.max(10, this.configuration.get("requestTimeoutSeconds", 600));
+    const idleTimeoutSeconds = Math.max(10, this.configuration.get("streamIdleTimeoutSeconds", 120));
     const cancellation = token.onCancellationRequested(() => controller.abort());
-    let timedOut = false;
-    let requestTimeout: ReturnType<typeof setTimeout> | undefined;
-    const resetRequestTimeout = (): void => {
-      if (requestTimeout) clearTimeout(requestTimeout);
-      requestTimeout = setTimeout(() => {
-        timedOut = true;
+    let timedOut: "total" | "idle" | undefined;
+    const totalTimeout = setTimeout(() => {
+      timedOut = "total";
+      controller.abort();
+    }, timeoutSeconds * 1000);
+    let idleTimeout: ReturnType<typeof setTimeout> | undefined;
+    const resetIdleTimeout = (): void => {
+      if (idleTimeout) clearTimeout(idleTimeout);
+      idleTimeout = setTimeout(() => {
+        timedOut = "idle";
         controller.abort();
-      }, timeoutSeconds * 1000);
+      }, idleTimeoutSeconds * 1000);
     };
-    resetRequestTimeout();
+    resetIdleTimeout();
     if (token.isCancellationRequested) controller.abort();
     const streamState = createResponseStreamState(randomUUID());
     const responseUsageState = createResponseUsageState();
@@ -207,7 +212,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
           responseUsageState,
           this.debugLogging ? (message) => this.output.appendLine(message) : undefined,
         ),
-        resetRequestTimeout,
+        resetIdleTimeout,
       );
       if (!completed) return;
       if (streamState.sawDone) {
@@ -234,12 +239,15 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     } catch (error) {
       if (token.isCancellationRequested) return;
       if (timedOut) {
-        throw new Error(`Ollama Cloud request for ${model.id} received no data for ${timeoutSeconds} seconds`);
+        throw new Error(timedOut === "idle"
+          ? `Ollama Cloud request for ${model.id} received no data for ${idleTimeoutSeconds} seconds`
+          : `Ollama Cloud request for ${model.id} exceeded ${timeoutSeconds} seconds`);
       }
       throw error;
     } finally {
       closeThinking(progress, streamState);
-      if (requestTimeout) clearTimeout(requestTimeout);
+      clearTimeout(totalTimeout);
+      if (idleTimeout) clearTimeout(idleTimeout);
       cancellation.dispose();
     }
   }
