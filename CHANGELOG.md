@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0
+
+### Minor Changes
+
+- 28a6efc: Align the composer on Reasoning Effort while preserving exact native Ollama thinking profiles, and split total and stream-idle request timeouts.
+
+### Patch Changes
+
+- 28a6efc: Default ordered Ollama Cloud thinking controls to High while retaining exact per-model native choices and payloads.
+
 ## 0.1.12
 
 ### Patch Changes
