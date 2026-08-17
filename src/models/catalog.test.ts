@@ -9,6 +9,7 @@ import {
   modelFromShow,
   type CatalogCache,
 } from "./catalog";
+import { MODELS_DEV_API_URL } from "./metadata";
 
 class MemoryCache implements CatalogCache {
   readonly values = new Map<string, unknown>();
@@ -89,6 +90,35 @@ test("show metadata overrides context and capabilities", () => {
   assert.equal(model.capabilities.thinking, true);
 });
 
+test("Models.dev enriches unknown models without overriding verified fallback limits", () => {
+  const metadata = {
+    id: "future-model:9b",
+    contextLength: 131072,
+    maxOutputTokens: 32768,
+    imageInput: true,
+    toolCalling: true,
+    thinking: true,
+  };
+  const model = modelFromShow("future-model:9b", {}, undefined, metadata);
+  assert.equal(model.contextLength, 131072);
+  assert.equal(model.maxOutputTokens, 32768);
+  assert.deepEqual(model.capabilities, {
+    imageInput: true,
+    toolCalling: true,
+    thinking: true,
+  });
+
+  const verified = modelFromShow("gpt-oss:20b", {}, undefined, {
+    id: "gpt-oss:20b",
+    contextLength: 131072,
+    maxOutputTokens: 32768,
+    imageInput: false,
+    toolCalling: true,
+    thinking: true,
+  });
+  assert.equal(verified.maxOutputTokens, 131072);
+});
+
 test("normalizes low-level architecture names into stable model families", () => {
   assert.equal(modelFromShow("gpt-oss:20b", {
     details: { family: "gptoss" },
@@ -124,9 +154,45 @@ test("refresh hydrates models and persists the cache", async () => {
 
   const models = await catalog.refresh("not-logged");
   assert.equal(models.length, 2);
-  assert.equal(requests.length, 3);
+  assert.equal(requests.length, 4);
   assert.equal(models.find((model) => model.id === "new-model")?.capabilities.imageInput, true);
   assert.equal(Array.isArray(cache.values.get(CATALOG_CACHE_KEY)), true);
+});
+
+test("refresh uses cached Models.dev metadata for a newly discovered model", async () => {
+  const cache = new MemoryCache();
+  const catalog = new ModelCatalog(cache, async (input) => {
+    const url = String(input);
+    if (url === MODELS_DEV_API_URL) {
+      return Response.json({
+        "ollama-cloud": {
+          models: {
+            "new-model": {
+              limit: { context: 64000, output: 16000 },
+              attachment: true,
+              modalities: { input: ["text", "image"], output: ["text"] },
+              reasoning: true,
+              tool_call: true,
+            },
+          },
+        },
+      });
+    }
+    if (url.endsWith("/tags")) return Response.json({ models: [{ name: "new-model" }] });
+    return new Response("unavailable", { status: 503 });
+  });
+
+  const models = await catalog.refresh("not-logged");
+  assert.deepEqual(models[0], {
+    id: "new-model",
+    name: "New Model",
+    family: "new",
+    version: "cloud",
+    contextLength: 64000,
+    maxOutputTokens: 16000,
+    capabilities: { imageInput: true, toolCalling: true, thinking: true },
+    retirementDate: undefined,
+  });
 });
 
 test("falls back per model when show hydration fails", async () => {
