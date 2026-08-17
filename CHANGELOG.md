@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.12
+
+### Patch Changes
+
+- f50cebb: Cache and use the Models.dev `ollama-cloud` metadata snapshot to enrich newly discovered Ollama Cloud models while preserving live Ollama capabilities and verified native limits.
+
 ## 0.1.11
 
 ### Patch Changes
