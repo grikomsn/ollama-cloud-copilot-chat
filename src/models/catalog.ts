@@ -1,5 +1,9 @@
 import { apiError } from "../errors";
 import { OLLAMA_ENDPOINTS, ollamaHeaders } from "../transport/protocol";
+import {
+  ModelsDevMetadata,
+  type ModelsDevModelMetadata,
+} from "./metadata";
 
 export const CATALOG_CACHE_KEY = "ollamaCloudCopilot.modelCatalog.v1";
 export const TOKEN_PRICING = "Included with Ollama Cloud subscription · no per-token API charge";
@@ -90,9 +94,13 @@ export class ModelCatalog {
   constructor(
     private readonly cache: CatalogCache,
     private readonly fetchImpl: Fetch = fetch,
+    metadata?: ModelsDevMetadata,
   ) {
+    this.metadata = metadata ?? new ModelsDevMetadata(cache, fetchImpl);
     this.models = parseCachedModels(cache.get<unknown>(CATALOG_CACHE_KEY)) ?? fallbackModels();
   }
+
+  private readonly metadata: ModelsDevMetadata;
 
   list(): readonly CloudModel[] {
     return this.models;
@@ -119,6 +127,7 @@ export class ModelCatalog {
     }));
     if (!ids.length) throw new Error("Ollama Cloud returned no hosted models");
 
+    const metadataPromise = this.metadata.getOrRefresh();
     const hydrated = await mapConcurrent(ids, 4, async (id) => {
       const fallback = SNAPSHOT_BY_ID.get(id);
       try {
@@ -128,11 +137,13 @@ export class ModelCatalog {
           body: JSON.stringify({ model: id, verbose: true }),
           signal,
         });
-        if (!show.ok) return modelFromSnapshot(fallback ?? unknownSnapshot(id));
-        return modelFromShow(id, await show.json() as ShowPayload, fallback);
+        const metadata = (await metadataPromise).models[id];
+        if (!show.ok) return modelFromSnapshot(fallback ?? unknownSnapshot(id), metadata);
+        return modelFromShow(id, await show.json() as ShowPayload, fallback, metadata);
       } catch (error) {
         if (signal?.aborted) throw error;
-        return modelFromSnapshot(fallback ?? unknownSnapshot(id));
+        const metadata = (await metadataPromise).models[id];
+        return modelFromSnapshot(fallback ?? unknownSnapshot(id), metadata);
       }
     });
 
@@ -147,22 +158,31 @@ export function modelFromShow(
   id: string,
   show: ShowPayload,
   fallback: SnapshotModel = SNAPSHOT_BY_ID.get(id) ?? unknownSnapshot(id),
+  metadata?: ModelsDevModelMetadata,
 ): CloudModel {
+  const hasVerifiedFallback = SNAPSHOT_BY_ID.has(id);
   const capabilityNames = Array.isArray(show.capabilities)
     ? show.capabilities.filter((value): value is string => typeof value === "string")
-    : fallback.capabilities.split(" ");
+    : hasVerifiedFallback
+      ? fallback.capabilities.split(" ")
+      : capabilitiesToNames(metadata) ?? fallback.capabilities.split(" ");
   // Ollama's details.family is the low-level architecture identifier
   // (for example "gptoss" or "minimax-m3"), while VS Code and the
   // thinking-option resolver need a stable product family.
   const family = inferFamily(id);
-  const contextLength = findContextLength(show.model_info) ?? fallback.contextLength;
+  const contextLength = findContextLength(show.model_info)
+    ?? (hasVerifiedFallback ? undefined : metadata?.contextLength)
+    ?? fallback.contextLength;
+  const maxOutputTokens = hasVerifiedFallback
+    ? fallback.maxOutputTokens
+    : metadata?.maxOutputTokens ?? fallback.maxOutputTokens;
   return {
     id,
     name: humanizeModelId(id),
     family,
     version: inferVersion(id),
     contextLength,
-    maxOutputTokens: Math.min(fallback.maxOutputTokens, contextLength),
+    maxOutputTokens: Math.min(maxOutputTokens, contextLength),
     parameterSize: nonEmpty(show.details?.parameter_size),
     quantization: nonEmpty(show.details?.quantization_level),
     capabilities: capabilitiesFrom(capabilityNames),
@@ -201,17 +221,44 @@ export function humanizeModelId(id: string): string {
     .join(" ");
 }
 
-function modelFromSnapshot(model: SnapshotModel): CloudModel {
+function modelFromSnapshot(model: SnapshotModel, metadata?: ModelsDevModelMetadata): CloudModel {
+  const hasVerifiedFallback = SNAPSHOT_BY_ID.has(model.id);
+  const contextLength = hasVerifiedFallback
+    ? model.contextLength
+    : metadata?.contextLength ?? model.contextLength;
+  const maxOutputTokens = hasVerifiedFallback
+    ? model.maxOutputTokens
+    : metadata?.maxOutputTokens ?? model.maxOutputTokens;
   return {
     id: model.id,
     name: humanizeModelId(model.id),
     family: inferFamily(model.id),
     version: inferVersion(model.id),
-    contextLength: model.contextLength,
-    maxOutputTokens: model.maxOutputTokens,
-    capabilities: capabilitiesFrom(model.capabilities.split(" ")),
+    contextLength,
+    maxOutputTokens: Math.min(maxOutputTokens, contextLength),
+    capabilities: hasVerifiedFallback || !metadata
+      ? capabilitiesFrom(model.capabilities.split(" "))
+      : capabilitiesFromMetadata(metadata),
     retirementDate: model.retirementDate,
   };
+}
+
+function capabilitiesFromMetadata(metadata: ModelsDevModelMetadata): ModelCapabilities {
+  return {
+    imageInput: metadata.imageInput === true,
+    toolCalling: metadata.toolCalling === true,
+    thinking: metadata.thinking === true,
+  };
+}
+
+function capabilitiesToNames(metadata: ModelsDevModelMetadata | undefined): string[] | undefined {
+  if (!metadata) return undefined;
+  const names = [
+    metadata.imageInput ? "vision" : undefined,
+    metadata.toolCalling ? "tools" : undefined,
+    metadata.thinking ? "thinking" : undefined,
+  ].filter((value): value is string => value !== undefined);
+  return names.length ? names : ["completion"];
 }
 
 function parseCachedModels(value: unknown): CloudModel[] | undefined {
