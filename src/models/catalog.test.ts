@@ -170,6 +170,7 @@ test("refresh uses cached Models.dev metadata for a newly discovered model", asy
             "new-model": {
               limit: { context: 64000, output: 16000 },
               attachment: true,
+              modalities: { input: ["text", "image"], output: ["text"] },
               reasoning: true,
               tool_call: true,
             },

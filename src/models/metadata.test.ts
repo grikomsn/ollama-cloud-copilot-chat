@@ -65,6 +65,20 @@ test("normalizes the ollama-cloud Models.dev provider", () => {
   });
 });
 
+test("does not treat generic attachments as image input", () => {
+  const snapshot = normalizeModelsDevSnapshot({
+    "ollama-cloud": {
+      models: {
+        "text-model": {
+          attachment: true,
+          modalities: { input: ["text"], output: ["text"] },
+        },
+      },
+    },
+  }, 123);
+  assert.equal(snapshot.models["text-model"]?.imageInput, false);
+});
+
 test("rejects malformed or unrelated provider payloads", () => {
   assert.throws(() => normalizeModelsDevSnapshot({ models: {} }, 1));
   assert.equal(parseCachedModelsDevSnapshot({ fetchedAt: 1, models: [] }), undefined);

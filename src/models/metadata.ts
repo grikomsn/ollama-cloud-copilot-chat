@@ -158,7 +158,7 @@ function normalizeModel(key: string, value: unknown): ModelsDevModelMetadata | u
     family: stringValue(raw.family),
     contextLength: validTokenCount(limit?.context) ? limit.context : undefined,
     maxOutputTokens: validTokenCount(limit?.output) ? limit.output : undefined,
-    imageInput: raw.attachment === true || inputModalities.includes("image"),
+    imageInput: inputModalities.includes("image"),
     toolCalling: raw.tool_call === true,
     thinking: raw.reasoning === true,
     reasoningOptions: reasoningOptions.length ? reasoningOptions : undefined,
