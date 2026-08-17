@@ -2,7 +2,7 @@ import type { CloudModel } from "./catalog";
 
 export type ThinkValue = boolean | "low" | "medium" | "high" | "max";
 
-type ThinkingChoice = "default" | "disabled" | "enabled" | Exclude<ThinkValue, boolean>;
+type ThinkingChoice = "default" | "off" | "on" | Exclude<ThinkValue, boolean>;
 
 interface ThinkingProfile {
   readonly values: readonly ThinkingChoice[];
@@ -11,33 +11,33 @@ interface ThinkingProfile {
 }
 
 const BOOLEAN_PROFILE: ThinkingProfile = {
-  values: ["disabled", "enabled"],
-  defaultValue: "enabled",
+  values: ["off", "on"],
+  defaultValue: "on",
   title: "Thinking",
 };
 const GPT_OSS_PROFILE: ThinkingProfile = {
   values: ["low", "medium", "high"],
-  defaultValue: "medium",
+  defaultValue: "high",
   title: "Thinking Effort",
 };
 const DEEPSEEK_V4_PROFILE: ThinkingProfile = {
-  values: ["disabled", "high", "max"],
+  values: ["off", "high", "max"],
   defaultValue: "high",
   title: "Thinking Effort",
 };
 const GLM_52_PROFILE: ThinkingProfile = {
-  values: ["disabled", "high", "max"],
-  defaultValue: "max",
+  values: ["off", "high", "max"],
+  defaultValue: "high",
   title: "Thinking Effort",
 };
 const KIMI_K3_PROFILE: ThinkingProfile = {
-  values: ["disabled", "low", "high", "max"],
-  defaultValue: "max",
+  values: ["off", "low", "high", "max"],
+  defaultValue: "high",
   title: "Thinking Effort",
 };
 const MINIMAX_M3_PROFILE: ThinkingProfile = {
   values: ["default", "low", "medium", "high", "max"],
-  defaultValue: "default",
+  defaultValue: "high",
   title: "Thinking Effort",
 };
 
@@ -71,12 +71,13 @@ export function buildThinkingSchema(model: CloudModel): {
   return {
     type: "object",
     properties: {
-      thinkingEffort: {
+      reasoningEffort: {
         type: "string",
         title: profile.title,
         enum: [...profile.values],
         enumItemLabels: profile.values.map(label),
-        description: profile.values.includes("disabled")
+        enumDescriptions: profile.values.map(description),
+        description: profile.values.includes("off")
           ? "Choose the model's thinking mode or reasoning effort"
           : "Choose how much reasoning the model performs",
         default: profile.defaultValue,
@@ -93,19 +94,36 @@ export function resolveThinkValue(
   if (!model.capabilities.thinking) return undefined;
   const profile = THINKING_PROFILES.get(model.id);
   if (!profile) return undefined;
-  const configured = configuration?.thinkingEffort;
-  const value = typeof configured === "string" && profile.values.includes(configured as ThinkingChoice)
-    ? configured as ThinkingChoice
+  const configured = configuration?.reasoningEffort ?? configuration?.thinkingEffort;
+  const normalized = normalizeChoice(configured);
+  const value = normalized && profile.values.includes(normalized)
+    ? normalized
     : profile.defaultValue;
   if (value === "default") return undefined;
-  if (value === "disabled") return false;
-  if (value === "enabled") return true;
+  if (value === "off") return false;
+  if (value === "on") return true;
   return value;
 }
 
 function label(value: ThinkingChoice): string {
   if (value === "default") return "Default";
-  if (value === "disabled") return "Off";
-  if (value === "enabled") return "On";
+  if (value === "off") return "Off";
+  if (value === "on") return "On";
   return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function description(value: ThinkingChoice): string {
+  if (value === "default") return "Use the model's native adaptive thinking policy";
+  if (value === "off") return "Disable thinking for this request";
+  if (value === "on") return "Enable thinking with the model's native policy";
+  if (value === "low") return "Use a lower thinking effort";
+  if (value === "medium") return "Use a balanced thinking effort";
+  if (value === "high") return "Use a higher thinking effort";
+  return "Use the model's maximum verified thinking effort";
+}
+
+function normalizeChoice(value: unknown): ThinkingChoice | undefined {
+  if (value === "disabled") return "off";
+  if (value === "enabled") return "on";
+  return typeof value === "string" ? value as ThinkingChoice : undefined;
 }

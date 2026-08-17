@@ -11,6 +11,7 @@ local Ollama installation.
 - `src/catalog.ts`: cloud model discovery, `/api/show` hydration, and fallback metadata
 - `src/convert.ts`: VS Code message/tool conversion
 - `src/model-options.ts`: model-picker thinking controls
+- `src/models/metadata.ts`: persisted models.dev enrichment for fields omitted by Ollama discovery
 - `src/ndjson.ts`: fragmented native Ollama response stream parsing
 - `src/auth.ts`: API keys in VS Code Secret Storage
 - Tests are colocated as `src/*.test.ts`.

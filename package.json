@@ -94,7 +94,13 @@
           "type": "number",
           "default": 600,
           "minimum": 10,
-          "description": "Maximum time to wait without receiving Ollama Cloud response data before aborting a request."
+          "description": "Maximum total duration of an Ollama Cloud request in seconds."
+        },
+        "ollamaCloudCopilot.streamIdleTimeoutSeconds": {
+          "type": "number",
+          "default": 120,
+          "minimum": 10,
+          "description": "Maximum time without receiving streamed Ollama Cloud response data before aborting a request."
         },
         "ollamaCloudCopilot.catalogCacheMinutes": {
           "type": "number",
