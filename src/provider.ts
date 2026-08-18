@@ -194,7 +194,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     );
     const tools = boundTools.tools;
     const think = resolveThinkValue(model, options.modelConfiguration);
-    const convertedMessages = convertMessages(messages);
+    const convertedMessages = boundTools.bindMessages(convertMessages(messages));
     const request = buildChatRequestPlan(
       model,
       convertedMessages,
