@@ -159,6 +159,18 @@ test("refresh hydrates models and persists the cache", async () => {
   assert.equal(Array.isArray(cache.values.get(CATALOG_CACHE_KEY)), true);
 });
 
+test("persists account catalogs under isolated cache keys", async () => {
+  const cache = new MemoryCache();
+  const catalog = new ModelCatalog(cache, async (input) => {
+    if (String(input).endsWith("/tags")) return Response.json({ models: [{ name: "gpt-oss:20b" }] });
+    return Response.json({ capabilities: ["completion", "tools", "thinking"] });
+  }, undefined, `${CATALOG_CACHE_KEY}.account`);
+
+  await catalog.refresh("not-logged");
+  assert.equal(cache.values.has(CATALOG_CACHE_KEY), false);
+  assert.equal(Array.isArray(cache.values.get(`${CATALOG_CACHE_KEY}.account`)), true);
+});
+
 test("refresh uses cached Models.dev metadata for a newly discovered model", async () => {
   const cache = new MemoryCache();
   const catalog = new ModelCatalog(cache, async (input) => {

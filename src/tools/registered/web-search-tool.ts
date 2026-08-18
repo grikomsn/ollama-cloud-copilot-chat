@@ -1,5 +1,4 @@
 import * as vscode from "vscode";
-import { OllamaCloudAuth } from "../../auth/auth";
 import {
   createWebSearchRequestCancellation,
   formatOllamaWebSearch,
@@ -8,7 +7,7 @@ import {
 } from "./web-search-client";
 
 export class OllamaWebSearchTool implements vscode.LanguageModelTool<OllamaWebSearchInput> {
-  constructor(private readonly auth: OllamaCloudAuth) {}
+  constructor(private readonly resolveApiKey: () => Promise<string | undefined>) {}
 
   prepareInvocation(
     options: vscode.LanguageModelToolInvocationPrepareOptions<OllamaWebSearchInput>,
@@ -21,9 +20,9 @@ export class OllamaWebSearchTool implements vscode.LanguageModelTool<OllamaWebSe
     options: vscode.LanguageModelToolInvocationOptions<OllamaWebSearchInput>,
     token: vscode.CancellationToken,
   ): Promise<vscode.LanguageModelToolResult> {
-    const apiKey = await this.auth.getApiKey();
+    const apiKey = await this.resolveApiKey();
     if (!apiKey) {
-      throw new Error("Configure an Ollama Cloud API key before using Ollama web search");
+      throw new Error("Select a configured Ollama Cloud model before using Ollama web search");
     }
 
     const { controller, cancellation } = createWebSearchRequestCancellation(token);

@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { API_KEY_SECRET, OllamaCloudAuth, type SecretStore } from "./auth";
+import { API_KEY_SECRET, credentialReference, OllamaCloudAuth, type SecretStore } from "./auth";
+
+test("derives stable secret-safe credential references", () => {
+  assert.equal(credentialReference(" key "), credentialReference("key"));
+  assert.notEqual(credentialReference("key-one"), credentialReference("key-two"));
+  assert.match(credentialReference("key"), /^[a-f0-9]{16}$/);
+});
 
 test("stores, trims, and clears API keys", async () => {
   const values = new Map<string, string>();

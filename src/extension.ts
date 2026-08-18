@@ -6,7 +6,8 @@ import { OLLAMA_WEB_SEARCH_TOOL_NAME, OllamaWebSearchTool } from "./tools/regist
 import { type OllamaUsageSnapshot } from "./usage/domain";
 import { renderUsageStatus, updateUsageStatusVisibility } from "./usage/presentation";
 import { registerCommands } from "./commands/commands";
-const USAGE_STATE_KEY = "ollamaCloudCopilot.usageSnapshot.v1";
+const LEGACY_USAGE_STATE_KEY = "ollamaCloudCopilot.usageSnapshot.v1";
+const USAGE_STATE_KEY = "ollamaCloudCopilot.usageSnapshots.v2";
 
 export interface OllamaCloudExtensionApi {
   smokeTestWithApiKey(
@@ -25,12 +26,14 @@ export function activate(
 ): OllamaCloudExtensionApi | undefined {
   const output = vscode.window.createOutputChannel("Ollama Cloud");
   const auth = new OllamaCloudAuth(context.secrets);
+  const storedUsage = context.globalState.get<Readonly<Record<string, OllamaUsageSnapshot>>>(USAGE_STATE_KEY)
+    ?? { legacy: context.globalState.get<OllamaUsageSnapshot>(LEGACY_USAGE_STATE_KEY) ?? {} };
   const provider = new OllamaCloudProvider(
     auth,
     context.globalState,
     output,
     `ollama-cloud-copilot-chat/${context.extension.packageJSON.version} VSCode/${vscode.version}`,
-    context.globalState.get<OllamaUsageSnapshot>(USAGE_STATE_KEY) ?? {},
+    storedUsage,
   );
   const usageStatus = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,
@@ -45,7 +48,9 @@ export function activate(
     output,
     usageStatus,
     vscode.lm.registerLanguageModelChatProvider("ollama-cloud", provider),
-    vscode.lm.registerTool(OLLAMA_WEB_SEARCH_TOOL_NAME, new OllamaWebSearchTool(auth)),
+    vscode.lm.registerTool(OLLAMA_WEB_SEARCH_TOOL_NAME, new OllamaWebSearchTool(
+      () => provider.getActiveApiKey(),
+    )),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("ollamaCloudCopilot.maxOutputTokens")
         || event.affectsConfiguration("ollamaCloudCopilot.catalogCacheMinutes")) {
@@ -55,9 +60,9 @@ export function activate(
         updateUsageStatusVisibility(usageStatus);
       }
     }),
-    provider.onDidChangeUsage((snapshot) => {
-      renderUsageStatus(usageStatus, snapshot);
-      void context.globalState.update(USAGE_STATE_KEY, snapshot);
+    provider.onDidChangeUsage(({ credentialRef, usage }) => {
+      if (credentialRef === provider.getActiveCredentialRef()) renderUsageStatus(usageStatus, usage);
+      void context.globalState.update(USAGE_STATE_KEY, provider.getUsageSnapshots());
     }),
     context.secrets.onDidChange((event) => {
       if (event.key === "ollamaCloudCopilot.apiKey") provider.fireDidChange();

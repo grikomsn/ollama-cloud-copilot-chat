@@ -124,7 +124,20 @@
       {
         "vendor": "ollama-cloud",
         "displayName": "Ollama Cloud",
-        "managementCommand": "ollamaCloudCopilot.manage"
+        "configuration": {
+          "type": "object",
+          "required": [
+            "apiKey"
+          ],
+          "properties": {
+            "apiKey": {
+              "type": "string",
+              "title": "Ollama Cloud API Key",
+              "description": "API key for this Ollama Cloud model-provider entry. VS Code stores configured secrets securely.",
+              "secret": true
+            }
+          }
+        }
       }
     ],
     "languageModelTools": [

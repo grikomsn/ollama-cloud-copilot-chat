@@ -2,9 +2,15 @@
 
 ## Credentials
 
-The API key is stored under `ollamaCloudCopilot.apiKey` in VS Code Secret
-Storage. The extension validates a replacement key before storing it and
-removes it only after explicit user confirmation.
+API keys added through **Manage Language Models** are marked as secret provider
+configuration, so VS Code stores each entry's value in its secret storage. The
+extension receives the resolved key only while discovering or invoking that
+entry and keeps only a short SHA-256-derived reference in model metadata,
+catalog-cache keys, and usage state.
+
+The legacy configuration command stores one migration or smoke-test key under
+`ollamaCloudCopilot.apiKey` in VS Code Secret Storage. It removes that value
+only after explicit user confirmation.
 
 The runtime does not read `.env`, workspace settings, or process environment
 variables for credentials.
