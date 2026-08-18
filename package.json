@@ -167,6 +167,10 @@
               "maximum": 10,
               "default": 5,
               "description": "The maximum number of results to return."
+            },
+            "credential_ref": {
+              "type": "string",
+              "description": "Credential routing reference supplied by the selected Ollama Cloud model."
             }
           },
           "required": [

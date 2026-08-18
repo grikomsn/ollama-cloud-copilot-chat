@@ -31,6 +31,7 @@ import {
 import { estimateInputTokens } from "./provider/token-estimate";
 import { OLLAMA_ENDPOINTS, ollamaHeaders } from "./transport/protocol";
 import { convertTools } from "./tools/client-tools";
+import { bindCredentialToTools } from "./tools/credential-binding";
 import { buildChatRequestPlan } from "./provider/request";
 import { readOllamaNdjsonStream } from "./transport/ndjson-stream";
 import { closeThinking, reportResponseEvent } from "./provider/response";
@@ -105,10 +106,10 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     return this.activeCredentialRef;
   }
 
-  async getActiveApiKey(): Promise<string | undefined> {
-    return this.activeCredentialRef === "legacy"
+  async getApiKeyForCredential(credentialRef: string): Promise<string | undefined> {
+    return credentialRef === "legacy"
       ? this.auth.getApiKey()
-      : this.apiKeys.get(this.activeCredentialRef);
+      : this.apiKeys.get(credentialRef);
   }
 
   clearUsage(): void {
@@ -183,7 +184,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     const apiKey = await this.requireApiKey(false, information.credentialRef);
     const model = this.catalogFor(information.credentialRef).get(information.rawModelId);
     if (!model) throw new Error(`Unknown Ollama Cloud model: ${information.rawModelId}`);
-    const tools = convertTools(options.tools);
+    const tools = bindCredentialToTools(convertTools(options.tools), information.credentialRef);
     const think = resolveThinkValue(model, options.modelConfiguration);
     const convertedMessages = convertMessages(messages);
     const request = buildChatRequestPlan(
@@ -366,7 +367,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     const parameters = [model.parameterSize, model.quantization].filter(Boolean).join(" ");
     const retirement = model.retirementDate ? ` · retires ${model.retirementDate}` : "";
     return {
-      id: model.id,
+      id: `${credentialRef}::${model.id}`,
       rawModelId: model.id,
       credentialRef,
       name: model.name,
@@ -382,6 +383,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
       maxOutputTokens,
       isUserSelectable: true,
       isBYOK: true,
+      requiresAuthorization: { label: `Ollama Cloud (${credentialRef.slice(0, 8)})` },
       ...(thinkingSchema ? { configurationSchema: thinkingSchema } : {}),
       capabilities: {
         imageInput: model.capabilities.imageInput,

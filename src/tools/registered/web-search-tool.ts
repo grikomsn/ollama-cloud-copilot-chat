@@ -7,7 +7,7 @@ import {
 } from "./web-search-client";
 
 export class OllamaWebSearchTool implements vscode.LanguageModelTool<OllamaWebSearchInput> {
-  constructor(private readonly resolveApiKey: () => Promise<string | undefined>) {}
+  constructor(private readonly resolveApiKey: (credentialRef: string) => Promise<string | undefined>) {}
 
   prepareInvocation(
     options: vscode.LanguageModelToolInvocationPrepareOptions<OllamaWebSearchInput>,
@@ -20,9 +20,11 @@ export class OllamaWebSearchTool implements vscode.LanguageModelTool<OllamaWebSe
     options: vscode.LanguageModelToolInvocationOptions<OllamaWebSearchInput>,
     token: vscode.CancellationToken,
   ): Promise<vscode.LanguageModelToolResult> {
-    const apiKey = await this.resolveApiKey();
+    const credentialRef = options.input.credential_ref;
+    if (!credentialRef) throw new Error("The selected Ollama Cloud model did not bind an API-key reference to web search");
+    const apiKey = await this.resolveApiKey(credentialRef);
     if (!apiKey) {
-      throw new Error("Select a configured Ollama Cloud model before using Ollama web search");
+      throw new Error("The API key bound to this Ollama Cloud model is no longer available");
     }
 
     const { controller, cancellation } = createWebSearchRequestCancellation(token);
