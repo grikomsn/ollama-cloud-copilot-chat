@@ -32,6 +32,7 @@ import { estimateInputTokens } from "./provider/token-estimate";
 import { OLLAMA_ENDPOINTS, ollamaHeaders } from "./transport/protocol";
 import { convertTools } from "./tools/client-tools";
 import { bindCredentialToTools } from "./tools/credential-binding";
+import { CredentialCapabilities } from "./tools/credential-capabilities";
 import { buildChatRequestPlan } from "./provider/request";
 import { readOllamaNdjsonStream } from "./transport/ndjson-stream";
 import { closeThinking, reportResponseEvent } from "./provider/response";
@@ -53,6 +54,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
   private readonly apiKeys = new Map<string, string>();
   private readonly charsPerToken = new Map<string, number>();
   private readonly usageByCredential = new Map<string, OllamaUsageSnapshot>();
+  private readonly credentialCapabilities = new CredentialCapabilities();
   private activeCredentialRef = "legacy";
   readonly onDidChangeLanguageModelChatInformation = this.changeEmitter.event;
   readonly onDidChangeUsage = this.usageEmitter.event;
@@ -106,7 +108,9 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     return this.activeCredentialRef;
   }
 
-  async getApiKeyForCredential(credentialRef: string): Promise<string | undefined> {
+  async getApiKeyForCapability(capability: string): Promise<string | undefined> {
+    const credentialRef = this.credentialCapabilities.resolve(capability);
+    if (!credentialRef) return undefined;
     return credentialRef === "legacy"
       ? this.auth.getApiKey()
       : this.apiKeys.get(credentialRef);
@@ -184,7 +188,11 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     const apiKey = await this.requireApiKey(false, information.credentialRef);
     const model = this.catalogFor(information.credentialRef).get(information.rawModelId);
     if (!model) throw new Error(`Unknown Ollama Cloud model: ${information.rawModelId}`);
-    const tools = bindCredentialToTools(convertTools(options.tools), information.credentialRef);
+    const boundTools = bindCredentialToTools(
+      convertTools(options.tools),
+      this.credentialCapabilities.issue(information.credentialRef),
+    );
+    const tools = boundTools.tools;
     const think = resolveThinkValue(model, options.modelConfiguration);
     const convertedMessages = convertMessages(messages);
     const request = buildChatRequestPlan(
@@ -243,6 +251,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
           streamState,
           responseUsageState,
           this.debugLogging ? (message) => this.output.appendLine(message) : undefined,
+          boundTools.routeToolCall,
         ),
         resetIdleTimeout,
       );

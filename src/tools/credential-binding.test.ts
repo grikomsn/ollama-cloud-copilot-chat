@@ -11,10 +11,20 @@ test("binds Ollama web search to the selected model credential", () => {
       parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] },
     },
   }];
-  const [bound] = bindCredentialToTools(tools, "sha256-ref");
-  assert.deepEqual(bound.function.parameters.required, ["query", "credential_ref"]);
+  const bound = bindCredentialToTools(tools, "capability-a");
+  assert.equal(bound.tools[0].function.name, "ollama-cloud_web-search__capability_a");
   assert.deepEqual(
-    (bound.function.parameters.properties as Record<string, unknown>).credential_ref,
-    { type: "string", enum: ["sha256-ref"] },
+    bound.routeToolCall("ollama-cloud_web-search__capability_a", {
+      query: "news",
+      credential_capability: "capability-b",
+    }),
+    {
+      name: "ollama-cloud_web-search",
+      input: { query: "news", credential_capability: "capability-a" },
+    },
+  );
+  assert.throws(
+    () => bound.routeToolCall("ollama-cloud_web-search__capability_b", { query: "news" }),
+    /unbound web-search tool call/,
   );
 });

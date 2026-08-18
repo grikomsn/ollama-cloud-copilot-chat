@@ -1,31 +1,28 @@
 import type { OllamaTool } from "../provider/messages";
 import { OLLAMA_WEB_SEARCH_TOOL_NAME } from "./registered/web-search-client";
 
-export function bindCredentialToTools(tools: readonly OllamaTool[], credentialRef: string): OllamaTool[] {
-  return tools.map((tool) => {
-    if (tool.function.name !== OLLAMA_WEB_SEARCH_TOOL_NAME) return tool;
-    const parameters = tool.function.parameters;
-    const properties = isRecord(parameters.properties) ? parameters.properties : {};
-    const required = Array.isArray(parameters.required)
-      ? parameters.required.filter((value): value is string => typeof value === "string")
-      : [];
-    return {
-      ...tool,
-      function: {
-        ...tool.function,
-        parameters: {
-          ...parameters,
-          properties: {
-            ...properties,
-            credential_ref: { type: "string", enum: [credentialRef] },
-          },
-          required: [...new Set([...required, "credential_ref"])],
-        },
-      },
-    };
-  });
+export interface BoundCredentialTools {
+  readonly tools: readonly OllamaTool[];
+  routeToolCall(name: string, input: Record<string, unknown>): { name: string; input: Record<string, unknown> };
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+export function bindCredentialToTools(tools: readonly OllamaTool[], capability: string): BoundCredentialTools {
+  const alias = `${OLLAMA_WEB_SEARCH_TOOL_NAME}__${capability.replaceAll("-", "_")}`;
+  return {
+    tools: tools.map((tool) => tool.function.name === OLLAMA_WEB_SEARCH_TOOL_NAME
+      ? { ...tool, function: { ...tool.function, name: alias } }
+      : tool),
+    routeToolCall: (name, input) => {
+      if (name === alias) {
+        return {
+          name: OLLAMA_WEB_SEARCH_TOOL_NAME,
+          input: { ...input, credential_capability: capability },
+        };
+      }
+      if (name === OLLAMA_WEB_SEARCH_TOOL_NAME || name.startsWith(`${OLLAMA_WEB_SEARCH_TOOL_NAME}__`)) {
+        throw new Error("Ollama Cloud returned an unbound web-search tool call");
+      }
+      return { name, input };
+    },
+  };
 }

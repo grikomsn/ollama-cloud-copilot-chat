@@ -168,9 +168,9 @@
               "default": 5,
               "description": "The maximum number of results to return."
             },
-            "credential_ref": {
+            "credential_capability": {
               "type": "string",
-              "description": "Credential routing reference supplied by the selected Ollama Cloud model."
+              "description": "Opaque request capability supplied by the selected Ollama Cloud model."
             }
           },
           "required": [
