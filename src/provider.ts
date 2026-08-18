@@ -156,7 +156,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     if (!options.configuration) return [];
     const apiKey = apiKeyFromConfiguration(options.configuration);
     if (!apiKey) return [];
-    const credentialRef = credentialReference(apiKey);
+    const credentialRef = await this.auth.getApiKey() === apiKey ? "legacy" : credentialReference(apiKey);
     this.apiKeys.set(credentialRef, apiKey);
     const catalog = this.catalogFor(credentialRef);
     const maxAge = Math.max(1, this.configuration.get("catalogCacheMinutes", 30)) * 60_000;
@@ -376,7 +376,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     const parameters = [model.parameterSize, model.quantization].filter(Boolean).join(" ");
     const retirement = model.retirementDate ? ` · retires ${model.retirementDate}` : "";
     return {
-      id: `${credentialRef}::${model.id}`,
+      id: credentialRef === "legacy" ? model.id : `${credentialRef}::${model.id}`,
       rawModelId: model.id,
       credentialRef,
       name: model.name,
