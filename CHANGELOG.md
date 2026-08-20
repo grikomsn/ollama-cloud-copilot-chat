@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+
+### Minor Changes
+
+- 92a1c57: Support multiple native Ollama Cloud provider entries with separately secured API keys, catalogs, usage snapshots, token calibration, and web-search routing.
+
 ## 0.2.0
 
 ### Minor Changes
