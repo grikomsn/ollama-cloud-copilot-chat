@@ -15,6 +15,8 @@ export function reportResponseEvent(
   state: ResponseStreamState,
   usageState: ResponseUsageState,
   logDone?: (message: string) => void,
+  routeToolCall: (name: string, input: Record<string, unknown>) => { name: string; input: Record<string, unknown> }
+    = (name, input) => ({ name, input }),
 ): void {
   observeResponseUsage(event, usageState);
   const transition = observeResponseEvent(model.id, event, state);
@@ -25,10 +27,11 @@ export function reportResponseEvent(
   if (transition.closeThinking) closeThinking(progress, state);
   if (event.text) progress.report(new vscode.LanguageModelTextPart(event.text));
   for (const tool of event.toolCalls ?? []) {
+    const routed = routeToolCall(tool.function.name, tool.function.arguments);
     progress.report(new vscode.LanguageModelToolCallPart(
       toolCallId(tool.id, state),
-      tool.function.name,
-      tool.function.arguments,
+      routed.name,
+      routed.input,
     ));
   }
   if (event.done) logDone?.(`[response] model=${model.id} doneReason=${event.doneReason ?? "unspecified"}`);

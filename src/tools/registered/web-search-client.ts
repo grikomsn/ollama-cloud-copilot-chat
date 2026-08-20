@@ -10,6 +10,7 @@ const MAX_OUTPUT_CHARS = 12_000;
 export interface OllamaWebSearchInput {
   readonly query: string;
   readonly max_results?: number;
+  readonly credential_capability?: string;
 }
 
 export interface OllamaWebSearchResult {

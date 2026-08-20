@@ -12,27 +12,27 @@ The Ollama application and CLI are not required. A paid Copilot plan is not requ
 ## Install and connect
 
 1. Install the extension from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=grikomsn.ollama-cloud-copilot-chat).
-2. Run **Ollama Cloud: Configure API Key** from the Command Palette.
-3. Paste an Ollama API key. The extension validates it before saving it.
-4. In Copilot Chat, open the model picker, select **Manage Models**, and enable **Ollama Cloud**.
-5. Select an available hosted model.
+2. Open **Manage Language Models**, choose **Add Models**, and select **Ollama Cloud**.
+3. Name the provider entry and paste an Ollama API key. VS Code stores the key as a secret.
+4. Repeat those steps to add another account or API key. Each entry keeps its catalog, subscription usage, and local token calibration separate.
+5. Enable the models you want and select one in Copilot Chat.
 
 ## Web search tool
 
 The extension contributes **Ollama Cloud Web Search** as a VS Code language-model
 tool. In agent mode, enable or reference `ollamaWebSearch` when you want current
-web context. The tool uses the Ollama API key already stored in VS Code Secret
-Storage and returns titles, URLs, and snippets from Ollama Cloud's web search
+web context. The tool uses the API key from the most recently invoked Ollama
+Cloud model entry and returns titles, URLs, and snippets from Ollama Cloud's web search
 endpoint. Ollama limits each request to 10 results; the default is 5.
 
-The key is validated against the hosted catalog and stored in VS Code Secret Storage. The project `.env` file is only a development convenience and is never read by the extension.
+VS Code stores native provider-entry API keys in its secret storage. The legacy **Configure API Key** command remains available for development smoke tests and migration, but native provider entries are the supported multi-account path. The project `.env` file is only a development convenience and is never read by the extension.
 
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
 | **Ollama Cloud: Manage Connection** | Test, refresh, inspect usage or logs, replace or remove the key, or open diagnostics |
-| **Ollama Cloud: Configure API Key** | Validate and securely save an Ollama API key |
+| **Ollama Cloud: Configure API Key** | Validate and save a legacy default API key for smoke tests or migration |
 | **Ollama Cloud: Remove API Key** | Delete the key and cached usage from VS Code |
 | **Ollama Cloud: Refresh Models** | Fetch the current hosted catalog and model metadata |
 | **Ollama Cloud: Test Inference** | Send a small live generation request |
@@ -66,8 +66,8 @@ Thinking controls appear only where the accepted native values are known. Ordere
 
 ## Troubleshooting
 
-- **No Ollama Cloud models in the picker:** enable **Ollama Cloud** under **Manage Models**, then run **Ollama Cloud: Refresh Models**.
-- **The API key is rejected:** create a fresh key and run **Ollama Cloud: Configure API Key** again.
+- **No Ollama Cloud models in the picker:** open **Manage Language Models**, add an Ollama Cloud entry, and enable its models.
+- **The API key is rejected:** create a fresh key and update the API key on that provider entry.
 - **A request times out:** increase `ollamaCloudCopilot.streamIdleTimeoutSeconds` for long pauses between chunks, or `ollamaCloudCopilot.requestTimeoutSeconds` for a longer total generation.
 - **An image is rejected:** refresh models and confirm the selected model's tooltip says `text + images`.
 - **Usage cannot refresh:** click the status item to retry. The last successful snapshot remains visible with a warning.

@@ -95,9 +95,10 @@ export class ModelCatalog {
     private readonly cache: CatalogCache,
     private readonly fetchImpl: Fetch = fetch,
     metadata?: ModelsDevMetadata,
+    private readonly cacheKey = CATALOG_CACHE_KEY,
   ) {
     this.metadata = metadata ?? new ModelsDevMetadata(cache, fetchImpl);
-    this.models = parseCachedModels(cache.get<unknown>(CATALOG_CACHE_KEY)) ?? fallbackModels();
+    this.models = parseCachedModels(cache.get<unknown>(cacheKey)) ?? fallbackModels();
   }
 
   private readonly metadata: ModelsDevMetadata;
@@ -149,7 +150,7 @@ export class ModelCatalog {
 
     this.models = orderModels(hydrated);
     this.refreshedAt = Date.now();
-    await this.cache.update(CATALOG_CACHE_KEY, this.models);
+    await this.cache.update(this.cacheKey, this.models);
     return [...this.models];
   }
 }

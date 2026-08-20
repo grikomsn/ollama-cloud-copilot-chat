@@ -29,8 +29,9 @@ This native VS Code `LanguageModelChatProvider` validates an Ollama API key, dis
 ## Quick start
 
 1. Install [Ollama Cloud for GitHub Copilot Chat](https://marketplace.visualstudio.com/items?itemName=grikomsn.ollama-cloud-copilot-chat). You need VS Code 1.125 or newer, GitHub Copilot Chat, and Ollama Cloud access.
-2. Create a key in [Ollama API keys](https://ollama.com/settings/keys), then run **Ollama Cloud: Configure API Key**.
-3. Open Copilot Chat, select **Manage Models**, enable **Ollama Cloud**, and choose a hosted model.
+2. Create a key in [Ollama API keys](https://ollama.com/settings/keys).
+3. Open **Manage Language Models**, choose **Add Models**, select **Ollama Cloud**, name the entry, and paste the key.
+4. Repeat the previous step for any additional account or API key, then enable the models you want in Copilot Chat.
 
 Composer controls override workspace defaults; ordered thinking controls default to High and verified binary controls default On. Click the Ollama status-bar item to inspect account utilization, per-model requests, and tokens observed by this extension. Account utilization and local token totals remain separate because Ollama limits are GPU/time based.
 
