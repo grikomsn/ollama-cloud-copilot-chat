@@ -17,8 +17,8 @@ function model(id: string, family: string, thinking = true): CloudModel {
 
 const EXPECTED_PROFILES = new Map<string, readonly string[]>([
   ["deepseek-v4-flash:0731", ["off", "high", "max"]],
-  ["deepseek-v4-flash:preview", ["off", "high", "max"]],
-  ["deepseek-v4-pro:preview", ["off", "high", "max"]],
+  ["deepseek-v4-flash", ["off", "high", "max"]],
+  ["deepseek-v4-pro", ["off", "high", "max"]],
   ["deepseek-v4-pro:0813", ["off", "high", "max"]],
   ["gemma4:31b", ["off", "on"]],
   ["glm-5.1", ["off", "on"]],
@@ -54,7 +54,7 @@ test("GPT-OSS supports only low, medium, and high", () => {
 });
 
 test("DeepSeek V4 Pro variants support off, high, and max", () => {
-  for (const id of ["deepseek-v4-pro:preview", "deepseek-v4-pro:0813"]) {
+  for (const id of ["deepseek-v4-pro", "deepseek-v4-pro:0813"]) {
     const candidate = model(id, "deepseek");
     assert.equal(resolveThinkValue(candidate, { reasoningEffort: "off" }), false, id);
     assert.equal(resolveThinkValue(candidate, { reasoningEffort: "high" }), "high", id);

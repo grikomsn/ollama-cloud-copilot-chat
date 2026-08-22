@@ -34,13 +34,20 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
   });
   assert.equal(models.some((model) => model.id === "kimi-k2.5"), false);
   assert.equal(models.some((model) => model.id === "minimax-m2.5"), false);
-  assert.equal(models.some((model) => model.id === "deepseek-v4-flash"), false);
-  assert.equal(models.some((model) => model.id === "deepseek-v4-flash:preview"), true);
-  assert.equal(models.some((model) => model.id === "deepseek-v4-pro"), false);
-  const deepseekProPreview = models.find((model) => model.id === "deepseek-v4-pro:preview");
-  assert.equal(deepseekProPreview?.contextLength, 524288);
-  assert.equal(deepseekProPreview?.maxOutputTokens, 384000);
-  assert.deepEqual(deepseekProPreview?.capabilities, {
+  assert.equal(models.some((model) => model.id === "deepseek-v4-flash:preview"), false);
+  const deepseekFlash = models.find((model) => model.id === "deepseek-v4-flash");
+  assert.equal(deepseekFlash?.contextLength, 1048576);
+  assert.equal(deepseekFlash?.maxOutputTokens, 384000);
+  assert.deepEqual(deepseekFlash?.capabilities, {
+    imageInput: false,
+    toolCalling: true,
+    thinking: true,
+  });
+  assert.equal(models.some((model) => model.id === "deepseek-v4-pro:preview"), false);
+  const deepseekPro = models.find((model) => model.id === "deepseek-v4-pro");
+  assert.equal(deepseekPro?.contextLength, 1048576);
+  assert.equal(deepseekPro?.maxOutputTokens, 384000);
+  assert.deepEqual(deepseekPro?.capabilities, {
     imageInput: false,
     toolCalling: true,
     thinking: true,
@@ -68,6 +75,29 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
     toolCalling: true,
     thinking: true,
   });
+});
+
+test("ignores v1 cached retired models when a catalog refresh fails", async () => {
+  const cache = new MemoryCache();
+  cache.values.set("ollamaCloudCopilot.modelCatalog.v1.account", [{
+    id: "deepseek-v4-flash:preview",
+    name: "DeepSeek V4 Flash Preview",
+    family: "deepseek",
+    version: "preview",
+    contextLength: 1048576,
+    maxOutputTokens: 384000,
+    capabilities: { imageInput: false, toolCalling: true, thinking: true },
+  }]);
+
+  const catalog = new ModelCatalog(
+    cache,
+    async () => new Response("unavailable", { status: 503 }),
+    undefined,
+    `${CATALOG_CACHE_KEY}.account`,
+  );
+  await assert.rejects(catalog.refresh("not-logged"));
+  assert.equal(catalog.get("deepseek-v4-flash:preview"), undefined);
+  assert.notEqual(catalog.get("deepseek-v4-flash"), undefined);
 });
 
 test("show metadata overrides context and capabilities", () => {

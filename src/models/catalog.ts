@@ -5,7 +5,10 @@ import {
   type ModelsDevModelMetadata,
 } from "./metadata";
 
-export const CATALOG_CACHE_KEY = "ollamaCloudCopilot.modelCatalog.v1";
+// v2 intentionally invalidates v1 caches that may contain retired
+// DeepSeek V4 Preview model IDs. Falling back during a failed refresh must
+// never reintroduce IDs retired from Ollama Cloud.
+export const CATALOG_CACHE_KEY = "ollamaCloudCopilot.modelCatalog.v2";
 export const TOKEN_PRICING = "Included with Ollama Cloud subscription · no per-token API charge";
 
 export interface ModelCapabilities {
@@ -66,9 +69,9 @@ const SNAPSHOT: readonly SnapshotModel[] = [
   { id: "glm-5.2", contextLength: 1000000, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
   { id: "minimax-m3", contextLength: 524288, maxOutputTokens: 131072, capabilities: "vision thinking completion tools" },
   { id: "nemotron-3-ultra", contextLength: 262144, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
-  { id: "deepseek-v4-pro:preview", contextLength: 524288, maxOutputTokens: 384000, capabilities: "thinking completion tools" },
+  { id: "deepseek-v4-pro", contextLength: 1048576, maxOutputTokens: 384000, capabilities: "thinking completion tools" },
   { id: "deepseek-v4-pro:0813", contextLength: 1048576, maxOutputTokens: 384000, capabilities: "thinking completion tools" },
-  { id: "deepseek-v4-flash:preview", contextLength: 1048576, maxOutputTokens: 384000, capabilities: "thinking completion tools" },
+  { id: "deepseek-v4-flash", contextLength: 1048576, maxOutputTokens: 384000, capabilities: "thinking completion tools" },
   { id: "gemma4:31b", contextLength: 262144, maxOutputTokens: 128000, capabilities: "vision thinking completion tools" },
   { id: "qwen3.5:397b", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
   { id: "kimi-k2.6", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
