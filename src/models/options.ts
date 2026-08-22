@@ -43,8 +43,8 @@ const MINIMAX_M3_PROFILE: ThinkingProfile = {
 
 const THINKING_PROFILES = new Map<string, ThinkingProfile>([
   ["deepseek-v4-flash:0731", DEEPSEEK_V4_PROFILE],
-  ["deepseek-v4-flash:preview", DEEPSEEK_V4_PROFILE],
-  ["deepseek-v4-pro:preview", DEEPSEEK_V4_PROFILE],
+  ["deepseek-v4-flash", DEEPSEEK_V4_PROFILE],
+  ["deepseek-v4-pro", DEEPSEEK_V4_PROFILE],
   ["deepseek-v4-pro:0813", DEEPSEEK_V4_PROFILE],
   ["gemma4:31b", BOOLEAN_PROFILE],
   ["glm-5.1", BOOLEAN_PROFILE],

@@ -34,13 +34,20 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
   });
   assert.equal(models.some((model) => model.id === "kimi-k2.5"), false);
   assert.equal(models.some((model) => model.id === "minimax-m2.5"), false);
-  assert.equal(models.some((model) => model.id === "deepseek-v4-flash"), false);
-  assert.equal(models.some((model) => model.id === "deepseek-v4-flash:preview"), true);
-  assert.equal(models.some((model) => model.id === "deepseek-v4-pro"), false);
-  const deepseekProPreview = models.find((model) => model.id === "deepseek-v4-pro:preview");
-  assert.equal(deepseekProPreview?.contextLength, 524288);
-  assert.equal(deepseekProPreview?.maxOutputTokens, 384000);
-  assert.deepEqual(deepseekProPreview?.capabilities, {
+  assert.equal(models.some((model) => model.id === "deepseek-v4-flash:preview"), false);
+  const deepseekFlash = models.find((model) => model.id === "deepseek-v4-flash");
+  assert.equal(deepseekFlash?.contextLength, 1048576);
+  assert.equal(deepseekFlash?.maxOutputTokens, 384000);
+  assert.deepEqual(deepseekFlash?.capabilities, {
+    imageInput: false,
+    toolCalling: true,
+    thinking: true,
+  });
+  assert.equal(models.some((model) => model.id === "deepseek-v4-pro:preview"), false);
+  const deepseekPro = models.find((model) => model.id === "deepseek-v4-pro");
+  assert.equal(deepseekPro?.contextLength, 1048576);
+  assert.equal(deepseekPro?.maxOutputTokens, 384000);
+  assert.deepEqual(deepseekPro?.capabilities, {
     imageInput: false,
     toolCalling: true,
     thinking: true,
