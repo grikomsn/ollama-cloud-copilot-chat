@@ -6,7 +6,7 @@ The extension discovers the catalog available to the configured account and enri
 
 Authenticated `/api/tags` and `/api/show` metadata remains authoritative. Fields those endpoints omit are enriched from the canonical `ollama-cloud` provider in a six-hour models.dev snapshot stored in VS Code `globalState`. Stale metadata is returned immediately while refresh runs and remains available during models.dev outages.
 
-The fallback snapshot was last updated on 2026-08-16:
+The fallback snapshot was last updated on 2026-08-22:
 
 | Model | Context | Images | Tools | Thinking |
 | --- | ---: | :---: | :---: | :---: |
@@ -16,9 +16,9 @@ The fallback snapshot was last updated on 2026-08-16:
 | GLM 5.2 | 1M | No | Yes | Off / High / Max |
 | MiniMax M3 | 524K | Yes | Yes | Default / Low / Medium / High / Max |
 | Nemotron 3 Ultra | 262K | No | Yes | On / Off |
-| DeepSeek V4 Pro Preview | 524K | No | Yes | Off / High / Max |
+| DeepSeek V4 Pro | 1.049M | No | Yes | Off / High / Max |
 | DeepSeek V4 Pro 0813 | 1.049M | No | Yes | Off / High / Max |
-| DeepSeek V4 Flash Preview | 1.049M | No | Yes | Off / High / Max |
+| DeepSeek V4 Flash | 1.049M | No | Yes | Off / High / Max |
 | Gemma 4 31B | 262K | Yes | Yes | On / Off |
 | Qwen 3.5 397B | 262K | Yes | Yes | On / Off |
 | Kimi K2.6 | 262K | Yes | Yes | On / Off |

@@ -77,6 +77,29 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
   });
 });
 
+test("ignores v1 cached retired models when a catalog refresh fails", async () => {
+  const cache = new MemoryCache();
+  cache.values.set("ollamaCloudCopilot.modelCatalog.v1.account", [{
+    id: "deepseek-v4-flash:preview",
+    name: "DeepSeek V4 Flash Preview",
+    family: "deepseek",
+    version: "preview",
+    contextLength: 1048576,
+    maxOutputTokens: 384000,
+    capabilities: { imageInput: false, toolCalling: true, thinking: true },
+  }]);
+
+  const catalog = new ModelCatalog(
+    cache,
+    async () => new Response("unavailable", { status: 503 }),
+    undefined,
+    `${CATALOG_CACHE_KEY}.account`,
+  );
+  await assert.rejects(catalog.refresh("not-logged"));
+  assert.equal(catalog.get("deepseek-v4-flash:preview"), undefined);
+  assert.notEqual(catalog.get("deepseek-v4-flash"), undefined);
+});
+
 test("show metadata overrides context and capabilities", () => {
   const model = modelFromShow("future-model:9b", {
     capabilities: ["completion", "vision", "tools", "thinking"],

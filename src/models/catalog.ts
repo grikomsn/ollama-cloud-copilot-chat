@@ -5,7 +5,10 @@ import {
   type ModelsDevModelMetadata,
 } from "./metadata";
 
-export const CATALOG_CACHE_KEY = "ollamaCloudCopilot.modelCatalog.v1";
+// v2 intentionally invalidates v1 caches that may contain retired
+// DeepSeek V4 Preview model IDs. Falling back during a failed refresh must
+// never reintroduce IDs retired from Ollama Cloud.
+export const CATALOG_CACHE_KEY = "ollamaCloudCopilot.modelCatalog.v2";
 export const TOKEN_PRICING = "Included with Ollama Cloud subscription · no per-token API charge";
 
 export interface ModelCapabilities {
