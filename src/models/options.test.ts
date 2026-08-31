@@ -23,6 +23,8 @@ const EXPECTED_PROFILES = new Map<string, readonly string[]>([
   ["gemma4:31b", ["off", "on"]],
   ["glm-5.1", ["off", "on"]],
   ["glm-5.2", ["off", "high", "max"]],
+  ["glm-5.3", ["low", "high", "max"]],
+  ["glm-5.3-flash", ["low", "high", "max"]],
   ["gpt-oss:20b", ["low", "medium", "high"]],
   ["gpt-oss:120b", ["low", "medium", "high"]],
   ["kimi-k2.6", ["off", "on"]],
@@ -68,6 +70,16 @@ test("GLM 5.2 defaults to high while GLM 5.1 remains boolean", () => {
   assert.equal(resolveThinkValue(glm52, undefined), "high");
   assert.equal(resolveThinkValue(glm52, { reasoningEffort: "off" }), false);
   assert.equal(resolveThinkValue(model("glm-5.1", "glm"), undefined), true);
+});
+
+test("GLM 5.3 models default to max and support their documented efforts", () => {
+  for (const id of ["glm-5.3", "glm-5.3-flash"]) {
+    const candidate = model(id, "glm");
+    assert.equal(resolveThinkValue(candidate, undefined), "max", id);
+    assert.equal(resolveThinkValue(candidate, { reasoningEffort: "low" }), "low", id);
+    assert.equal(resolveThinkValue(candidate, { reasoningEffort: "high" }), "high", id);
+    assert.equal(resolveThinkValue(candidate, { reasoningEffort: "off" }), "max", id);
+  }
 });
 
 test("Kimi K3 supports off plus low, high, and max", () => {
