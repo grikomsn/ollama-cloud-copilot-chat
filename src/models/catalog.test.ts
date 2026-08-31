@@ -23,7 +23,23 @@ class MemoryCache implements CatalogCache {
 
 test("fallback catalog includes current cloud models and rich capabilities", () => {
   const models = fallbackModels();
-  assert.equal(models.length, 19);
+  assert.equal(models.length, 21);
+  const glm53 = models.find((model) => model.id === "glm-5.3");
+  assert.equal(glm53?.contextLength, 1048576);
+  assert.equal(glm53?.maxOutputTokens, 131072);
+  assert.deepEqual(glm53?.capabilities, {
+    imageInput: false,
+    toolCalling: true,
+    thinking: true,
+  });
+  const glm53Flash = models.find((model) => model.id === "glm-5.3-flash");
+  assert.equal(glm53Flash?.contextLength, 1000000);
+  assert.equal(glm53Flash?.maxOutputTokens, 131072);
+  assert.deepEqual(glm53Flash?.capabilities, {
+    imageInput: true,
+    toolCalling: true,
+    thinking: true,
+  });
   const deepseek = models.find((model) => model.id === "deepseek-v4-flash:0731");
   assert.equal(deepseek?.contextLength, 1048576);
   assert.equal(deepseek?.maxOutputTokens, 384000);
@@ -98,6 +114,17 @@ test("ignores v1 cached retired models when a catalog refresh fails", async () =
   await assert.rejects(catalog.refresh("not-logged"));
   assert.equal(catalog.get("deepseek-v4-flash:preview"), undefined);
   assert.notEqual(catalog.get("deepseek-v4-flash"), undefined);
+});
+
+test("ignores v2 snapshots that predate the GLM 5.3 family", () => {
+  const cache = new MemoryCache();
+  cache.values.set("ollamaCloudCopilot.modelCatalog.v2", fallbackModels().filter((model) =>
+    !model.id.startsWith("glm-5.3")
+  ));
+
+  const catalog = new ModelCatalog(cache);
+  assert.notEqual(catalog.get("glm-5.3"), undefined);
+  assert.notEqual(catalog.get("glm-5.3-flash"), undefined);
 });
 
 test("show metadata overrides context and capabilities", () => {

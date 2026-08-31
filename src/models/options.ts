@@ -30,6 +30,11 @@ const GLM_52_PROFILE: ThinkingProfile = {
   defaultValue: "high",
   title: "Thinking Effort",
 };
+const GLM_53_PROFILE: ThinkingProfile = {
+  values: ["low", "high", "max"],
+  defaultValue: "max",
+  title: "Thinking Effort",
+};
 const KIMI_K3_PROFILE: ThinkingProfile = {
   values: ["off", "low", "high", "max"],
   defaultValue: "high",
@@ -49,6 +54,8 @@ const THINKING_PROFILES = new Map<string, ThinkingProfile>([
   ["gemma4:31b", BOOLEAN_PROFILE],
   ["glm-5.1", BOOLEAN_PROFILE],
   ["glm-5.2", GLM_52_PROFILE],
+  ["glm-5.3", GLM_53_PROFILE],
+  ["glm-5.3-flash", GLM_53_PROFILE],
   ["gpt-oss:20b", GPT_OSS_PROFILE],
   ["gpt-oss:120b", GPT_OSS_PROFILE],
   ["kimi-k2.6", BOOLEAN_PROFILE],

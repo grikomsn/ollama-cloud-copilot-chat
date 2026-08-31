@@ -5,10 +5,9 @@ import {
   type ModelsDevModelMetadata,
 } from "./metadata";
 
-// v2 intentionally invalidates v1 caches that may contain retired
-// DeepSeek V4 Preview model IDs. Falling back during a failed refresh must
-// never reintroduce IDs retired from Ollama Cloud.
-export const CATALOG_CACHE_KEY = "ollamaCloudCopilot.modelCatalog.v2";
+// v3 refreshes pre-authentication snapshots with the GLM 5.3 family while
+// continuing to exclude retired model IDs from older caches.
+export const CATALOG_CACHE_KEY = "ollamaCloudCopilot.modelCatalog.v3";
 export const TOKEN_PRICING = "Included with Ollama Cloud subscription · no per-token API charge";
 
 export interface ModelCapabilities {
@@ -63,6 +62,8 @@ export type Fetch = (input: string | URL | Request, init?: RequestInit) => Promi
 // This snapshot keeps the picker useful before authentication and records
 // output ceilings that /api/show does not currently publish.
 const SNAPSHOT: readonly SnapshotModel[] = [
+  { id: "glm-5.3", contextLength: 1048576, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
+  { id: "glm-5.3-flash", contextLength: 1000000, maxOutputTokens: 131072, capabilities: "vision thinking completion tools" },
   { id: "deepseek-v4-flash:0731", contextLength: 1048576, maxOutputTokens: 384000, capabilities: "thinking completion tools" },
   { id: "kimi-k3", contextLength: 1048576, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
   { id: "kimi-k2.7-code", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
