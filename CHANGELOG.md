@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2
+
+### Patch Changes
+
+- c7891ec: Add current GLM 5.3 and GLM 5.3 Flash metadata, capabilities, and thinking-effort controls to the pre-authentication cloud catalog.
+
 ## 0.3.1
 
 ### Patch Changes
