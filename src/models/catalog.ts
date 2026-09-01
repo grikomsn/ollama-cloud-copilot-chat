@@ -14,6 +14,14 @@ export interface ModelPricing {
   readonly output: string;
 }
 
+export interface ModelPricingFields {
+  readonly pricing: string;
+  readonly inputCost: number;
+  readonly outputCost: number;
+  readonly cacheCost: number;
+  readonly priceCategory: "low" | "medium" | "high" | "very_high";
+}
+
 // Ollama publishes these rates per million tokens. Keep the display values as
 // strings so sub-cent prices retain the precision shown on the pricing page.
 const MODEL_PRICING: Readonly<Record<string, ModelPricing>> = {
@@ -38,12 +46,27 @@ const MODEL_PRICING: Readonly<Record<string, ModelPricing>> = {
   "qwen3.5:397b": { input: "0.60", cachedInput: "0.60", output: "3.60" },
 };
 
-export function formatModelPricing(id: string): string | undefined {
+export function modelPricingFields(id: string): ModelPricingFields | undefined {
   const exact = MODEL_PRICING[id];
   const pricing = exact ?? MODEL_PRICING[id.split(":", 1)[0]];
-  return pricing
-    ? `$${pricing.input} input · $${pricing.cachedInput} cached input · $${pricing.output} output per 1M tokens`
-    : undefined;
+  if (!pricing) return undefined;
+  const input = Number(pricing.input);
+  const output = Number(pricing.output);
+  return {
+    pricing: `In: $${pricing.input} · Out: $${pricing.output} /1M tokens`,
+    inputCost: Math.round(input * 100),
+    outputCost: Math.round(output * 100),
+    cacheCost: Math.round(Number(pricing.cachedInput) * 100),
+    priceCategory: costCategory(input, output),
+  };
+}
+
+function costCategory(input: number, output: number): ModelPricingFields["priceCategory"] {
+  const weighted = input * 3 + output;
+  if (weighted <= 2) return "low";
+  if (weighted <= 25) return "medium";
+  if (weighted <= 50) return "high";
+  return "very_high";
 }
 
 export interface ModelCapabilities {

@@ -5,7 +5,7 @@ import {
   ModelCatalog,
   fallbackModels,
   findContextLength,
-  formatModelPricing,
+  modelPricingFields,
   humanizeModelId,
   modelFromShow,
   type CatalogCache,
@@ -22,16 +22,29 @@ class MemoryCache implements CatalogCache {
   }
 }
 
-test("formats Ollama per-token prices for exact models and tagged variants", () => {
-  assert.equal(
-    formatModelPricing("glm-5.3"),
-    "$1.40 input · $0.26 cached input · $4.40 output per 1M tokens",
-  );
-  assert.equal(
-    formatModelPricing("deepseek-v4-flash:0731"),
-    "$0.44 input · $0.014 cached input · $1.32 output per 1M tokens",
-  );
-  assert.equal(formatModelPricing("future-model"), undefined);
+test("registers Ollama display and structured prices for exact models and tagged variants", () => {
+  assert.deepEqual(modelPricingFields("glm-5.3"), {
+    pricing: "In: $1.40 · Out: $4.40 /1M tokens",
+    inputCost: 140,
+    outputCost: 440,
+    cacheCost: 26,
+    priceCategory: "medium",
+  });
+  assert.deepEqual(modelPricingFields("deepseek-v4-flash:0731"), {
+    pricing: "In: $0.44 · Out: $1.32 /1M tokens",
+    inputCost: 44,
+    outputCost: 132,
+    cacheCost: 1,
+    priceCategory: "medium",
+  });
+  assert.deepEqual(modelPricingFields("gpt-oss:20b"), {
+    pricing: "In: $0.07 · Out: $0.30 /1M tokens",
+    inputCost: 7,
+    outputCost: 30,
+    cacheCost: 4,
+    priceCategory: "low",
+  });
+  assert.equal(modelPricingFields("future-model"), undefined);
 });
 
 test("fallback catalog includes current cloud models and rich capabilities", () => {
