@@ -4,7 +4,7 @@ import { credentialReference, OllamaCloudAuth } from "./auth/auth";
 import {
   CATALOG_CACHE_KEY,
   ModelCatalog,
-  TOKEN_PRICING,
+  formatModelPricing,
   type CatalogCache,
   type CloudModel,
 } from "./models/catalog";
@@ -375,6 +375,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
       : model.capabilities.thinking ? "model-managed thinking" : "no thinking trace";
     const parameters = [model.parameterSize, model.quantization].filter(Boolean).join(" ");
     const retirement = model.retirementDate ? ` · retires ${model.retirementDate}` : "";
+    const pricing = formatModelPricing(model.id);
     return {
       id: credentialRef === "legacy" ? model.id : `${credentialRef}::${model.id}`,
       rawModelId: model.id,
@@ -386,11 +387,12 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
       tooltip: [
         `${model.id} · ${formatTokens(model.contextLength)} context`,
         `${modalities} · tools ${model.capabilities.toolCalling ? "supported" : "unavailable"} · ${thinking}`,
-        `${TOKEN_PRICING}${parameters ? ` · ${parameters}` : ""}${retirement}`,
+        [pricing, parameters, retirement.replace(/^ · /, "")].filter(Boolean).join(" · "),
       ].join("\n"),
       maxInputTokens: Math.max(1, model.contextLength - maxOutputTokens),
       maxOutputTokens,
       isUserSelectable: true,
+      ...(pricing ? { pricing } : {}),
       isBYOK: true,
       requiresAuthorization: { label: `Ollama Cloud (${credentialRef.slice(0, 8)})` },
       ...(thinkingSchema ? { configurationSchema: thinkingSchema } : {}),

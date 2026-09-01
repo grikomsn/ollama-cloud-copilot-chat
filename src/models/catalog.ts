@@ -8,7 +8,43 @@ import {
 // v3 refreshes pre-authentication snapshots with the GLM 5.3 family while
 // continuing to exclude retired model IDs from older caches.
 export const CATALOG_CACHE_KEY = "ollamaCloudCopilot.modelCatalog.v3";
-export const TOKEN_PRICING = "Included with Ollama Cloud subscription · no per-token API charge";
+export interface ModelPricing {
+  readonly input: string;
+  readonly cachedInput: string;
+  readonly output: string;
+}
+
+// Ollama publishes these rates per million tokens. Keep the display values as
+// strings so sub-cent prices retain the precision shown on the pricing page.
+const MODEL_PRICING: Readonly<Record<string, ModelPricing>> = {
+  "deepseek-v4-flash": { input: "0.44", cachedInput: "0.014", output: "1.32" },
+  "deepseek-v4-pro": { input: "1.32", cachedInput: "0.044", output: "3.96" },
+  gemma4: { input: "0.14", cachedInput: "0.05", output: "0.40" },
+  "glm-5.3": { input: "1.40", cachedInput: "0.26", output: "4.40" },
+  "glm-5.3-flash": { input: "0.15", cachedInput: "0.03", output: "0.50" },
+  "glm-5.2": { input: "1.40", cachedInput: "0.26", output: "4.40" },
+  "glm-5.1": { input: "1.00", cachedInput: "0.20", output: "3.20" },
+  "gpt-oss:120b": { input: "0.15", cachedInput: "0.014", output: "0.60" },
+  "gpt-oss:20b": { input: "0.07", cachedInput: "0.035", output: "0.30" },
+  "kimi-k3": { input: "3.00", cachedInput: "0.30", output: "15.00" },
+  "kimi-k2.7-code": { input: "0.95", cachedInput: "0.19", output: "4.00" },
+  "kimi-k2.6": { input: "0.95", cachedInput: "0.16", output: "4.00" },
+  "minimax-m3": { input: "0.60", cachedInput: "0.12", output: "2.40" },
+  "minimax-m2.7": { input: "0.30", cachedInput: "0.06", output: "1.20" },
+  "mistral-large-3": { input: "0.50", cachedInput: "0.50", output: "1.50" },
+  "nemotron-3-nano": { input: "0.06", cachedInput: "0.06", output: "0.24" },
+  "nemotron-3-super": { input: "0.015", cachedInput: "0.015", output: "0.60" },
+  "nemotron-3-ultra": { input: "0.10", cachedInput: "0.10", output: "3.00" },
+  "qwen3.5:397b": { input: "0.60", cachedInput: "0.60", output: "3.60" },
+};
+
+export function formatModelPricing(id: string): string | undefined {
+  const exact = MODEL_PRICING[id];
+  const pricing = exact ?? MODEL_PRICING[id.split(":", 1)[0]];
+  return pricing
+    ? `$${pricing.input} input · $${pricing.cachedInput} cached input · $${pricing.output} output per 1M tokens`
+    : undefined;
+}
 
 export interface ModelCapabilities {
   readonly imageInput: boolean;

@@ -5,6 +5,7 @@ import {
   ModelCatalog,
   fallbackModels,
   findContextLength,
+  formatModelPricing,
   humanizeModelId,
   modelFromShow,
   type CatalogCache,
@@ -20,6 +21,18 @@ class MemoryCache implements CatalogCache {
     this.values.set(key, value);
   }
 }
+
+test("formats Ollama per-token prices for exact models and tagged variants", () => {
+  assert.equal(
+    formatModelPricing("glm-5.3"),
+    "$1.40 input · $0.26 cached input · $4.40 output per 1M tokens",
+  );
+  assert.equal(
+    formatModelPricing("deepseek-v4-flash:0731"),
+    "$0.44 input · $0.014 cached input · $1.32 output per 1M tokens",
+  );
+  assert.equal(formatModelPricing("future-model"), undefined);
+});
 
 test("fallback catalog includes current cloud models and rich capabilities", () => {
   const models = fallbackModels();
