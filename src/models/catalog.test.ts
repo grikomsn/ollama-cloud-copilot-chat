@@ -23,7 +23,7 @@ class MemoryCache implements CatalogCache {
 
 test("fallback catalog includes current cloud models and rich capabilities", () => {
   const models = fallbackModels();
-  assert.equal(models.length, 21);
+  assert.equal(models.length, 23);
   const glm53 = models.find((model) => model.id === "glm-5.3");
   assert.equal(glm53?.contextLength, 1048576);
   assert.equal(glm53?.maxOutputTokens, 131072);
@@ -48,8 +48,8 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
     toolCalling: true,
     thinking: true,
   });
-  assert.equal(models.some((model) => model.id === "kimi-k2.5"), false);
-  assert.equal(models.some((model) => model.id === "minimax-m2.5"), false);
+  assert.equal(models.some((model) => model.id === "kimi-k2.5"), true);
+  assert.equal(models.some((model) => model.id === "minimax-m2.5"), true);
   assert.equal(models.some((model) => model.id === "deepseek-v4-flash:preview"), false);
   const deepseekFlash = models.find((model) => model.id === "deepseek-v4-flash");
   assert.equal(deepseekFlash?.contextLength, 1048576);
@@ -78,14 +78,31 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
   });
   const kimi = models.find((model) => model.id === "kimi-k3");
   assert.equal(kimi?.contextLength, 1048576);
-  assert.equal(kimi?.maxOutputTokens, 262144);
+  assert.equal(kimi?.maxOutputTokens, 131072);
   assert.deepEqual(kimi?.capabilities, {
     imageInput: true,
     toolCalling: true,
     thinking: true,
   });
+  const kimiK25 = models.find((model) => model.id === "kimi-k2.5");
+  assert.equal(kimiK25?.contextLength, 262144);
+  assert.equal(kimiK25?.maxOutputTokens, 262144);
+  assert.deepEqual(kimiK25?.capabilities, {
+    imageInput: true,
+    toolCalling: true,
+    thinking: true,
+  });
+  const minimaxM25 = models.find((model) => model.id === "minimax-m2.5");
+  assert.equal(minimaxM25?.contextLength, 204800);
+  assert.equal(minimaxM25?.maxOutputTokens, 131072);
+  assert.deepEqual(minimaxM25?.capabilities, {
+    imageInput: false,
+    toolCalling: true,
+    thinking: true,
+  });
   const gemma = models.find((model) => model.id === "gemma4:31b");
   assert.equal(gemma?.contextLength, 262144);
+  assert.equal(gemma?.maxOutputTokens, 262144);
   assert.deepEqual(gemma?.capabilities, {
     imageInput: true,
     toolCalling: true,
