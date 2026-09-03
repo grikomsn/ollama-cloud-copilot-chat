@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.3
+
+### Patch Changes
+
+- 463a8a5: Refresh the pre-authentication cloud catalog: add Kimi K2.5 and MiniMax M2.5, correct Kimi K3, Qwen3.5, MiniMax M2.7, MiniMax M3, Gemma4, GLM-5.2, and Nemotron output/context limits, and add thinking-effort controls for the new models.
+
 ## 0.3.2
 
 ### Patch Changes
