@@ -1,4 +1,6 @@
 import * as vscode from "vscode";
+import { CONFIG_SECTION, DEFAULT_INLINE_MODEL, INLINE_SUGGESTIONS_MODEL_SETTING } from "../autocomplete/config";
+import { inlineModelChoices } from "../autocomplete/models";
 import { OllamaCloudAuth } from "../auth/auth";
 import { messageOf } from "../errors";
 import { OllamaCloudProvider } from "../provider";
@@ -21,6 +23,7 @@ export function registerCommands(
     vscode.commands.registerCommand("ollamaCloudCopilot.configureApiKey", () => configureApiKey(provider, output)),
     vscode.commands.registerCommand("ollamaCloudCopilot.removeApiKey", () => removeApiKey(provider)),
     vscode.commands.registerCommand("ollamaCloudCopilot.refreshModels", () => refreshModels(provider)),
+    vscode.commands.registerCommand("ollamaCloudCopilot.setInlineSuggestionsModel", () => setInlineSuggestionsModel()),
     vscode.commands.registerCommand("ollamaCloudCopilot.testConnection", () => testConnection(provider, output)),
     vscode.commands.registerCommand("ollamaCloudCopilot.openApiKeys", openApiKeys),
     vscode.commands.registerCommand("ollamaCloudCopilot.showUsage", () => showUsage(provider, output)),
@@ -40,6 +43,7 @@ async function manage(
         { label: "$(check) Test Ollama Cloud inference", action: "test" },
         { label: "$(pulse) Show subscription usage", action: "usage" },
         { label: "$(refresh) Refresh cloud models", action: "refresh" },
+        { label: "$(zap) Set inline suggestions model", action: "inlineModel" },
         { label: "$(key) Replace API key", action: "configure" },
         { label: "$(link-external) Open Ollama API keys", action: "open" },
         { label: "$(link-external) Open Ollama account usage", action: "openUsage" },
@@ -60,6 +64,7 @@ async function manage(
   if (picked.action === "configure") await configureApiKey(provider, output);
   else if (picked.action === "usage") await showUsage(provider, output);
   else if (picked.action === "refresh") await refreshModels(provider);
+  else if (picked.action === "inlineModel") await setInlineSuggestionsModel();
   else if (picked.action === "test") await testConnection(provider, output);
   else if (picked.action === "open") await openApiKeys();
   else if (picked.action === "openUsage") await openAccountUsage();
@@ -115,6 +120,42 @@ async function refreshModels(provider: OllamaCloudProvider): Promise<void> {
   } catch (error) {
     vscode.window.showErrorMessage(messageOf(error));
   }
+}
+
+interface InlineModelPickItem extends vscode.QuickPickItem {
+  readonly action?: string | "custom";
+}
+
+async function setInlineSuggestionsModel(): Promise<void> {
+  const configuration = vscode.workspace.getConfiguration(CONFIG_SECTION);
+  const current = configuration.get<string>(INLINE_SUGGESTIONS_MODEL_SETTING, DEFAULT_INLINE_MODEL) ?? DEFAULT_INLINE_MODEL;
+  const picked = await vscode.window.showQuickPick<InlineModelPickItem>([
+    ...inlineModelChoices(current).map((choice) => ({
+      label: choice.label,
+      description: choice.description,
+      detail: choice.detail,
+      action: choice.id,
+    })),
+    { label: "", kind: vscode.QuickPickItemKind.Separator },
+    { label: "$(pencil) Use a custom model id…", detail: "Enter any Ollama Cloud model id that completes cleanly with think disabled.", action: "custom" as const },
+  ], {
+    title: "Ollama Cloud — Set Inline Suggestions Model",
+    placeHolder: `Current: ${current}`,
+  });
+  if (!picked?.action) return;
+  if (picked.action === "custom") {
+    const value = await vscode.window.showInputBox({
+      title: "Custom inline suggestions model id",
+      value: current,
+      prompt: "Any Ollama Cloud model id; the vetted list is a starting point, not a restriction.",
+    });
+    if (value === undefined || !value.trim()) return;
+    await configuration.update(INLINE_SUGGESTIONS_MODEL_SETTING, value.trim(), vscode.ConfigurationTarget.Global);
+    void vscode.window.showInformationMessage(`Ollama Cloud inline suggestions model set to ${value.trim()}.`);
+    return;
+  }
+  await configuration.update(INLINE_SUGGESTIONS_MODEL_SETTING, picked.action, vscode.ConfigurationTarget.Global);
+  void vscode.window.showInformationMessage(`Ollama Cloud inline suggestions model set to ${picked.action}. Applies on the next keystroke.`);
 }
 
 async function testConnection(

@@ -44,6 +44,10 @@
   "contributes": {
     "commands": [
       {
+        "command": "ollamaCloudCopilot.setInlineSuggestionsModel",
+        "title": "Ollama Cloud: Set Inline Suggestions Model"
+      },
+      {
         "command": "ollamaCloudCopilot.manage",
         "title": "Ollama Cloud: Manage Connection"
       },

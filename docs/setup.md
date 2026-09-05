@@ -66,6 +66,8 @@ Prompts, responses, tool data, and API keys are never intentionally written to t
 
 Inline code suggestions are experimental and off by default. When enabled, each suggestion sends a bounded fill-in-the-middle window (10 lines before the cursor, 300 characters after, both configurable) to the native `https://ollama.com/api/chat` endpoint with `think: false`, so thinking models cannot emit hidden reasoning into ghost text. Live-measured defaults: `gemma4:31b` (751ms total, zero reasoning) and `glm-5.1`. Narration-prone models — Kimi K2.6 and DeepSeek V4 Flash describe the code instead of completing it — are not recommended. A single surrounding code fence is stripped from suggestions. No suggestion appears in the Copilot Chat prompt box unless `ollamaCloudCopilot.inlineSuggestionsChatInput` is enabled.
 
+**Ollama Cloud: Set Inline Suggestions Model** (also in the Manage menu) lists compatible models ordered cheap-and-fast first, each with a measured badge (for example "★ recommended · measured 0.6s TTFB") or a warning for models measured to narrate instead of completing. A "Use a custom model id…" entry keeps any hosted model reachable. The command only writes settings, so changes apply on the next keystroke without a reload.
+
 ## Subscription usage
 
 The status bar shows exact account utilization as `5h` session and `7d` weekly percentages. Click it for per-model request counts, account activity cost when Ollama provides it, and input/output tokens observed by this extension. Request tokens use native Ollama counts when available and clearly label fallback estimates when a completed stream omits a count.
