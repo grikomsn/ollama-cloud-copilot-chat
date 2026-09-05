@@ -32,38 +32,63 @@ export const INLINE_MODEL_CANDIDATES: readonly InlineModelCandidate[] = [
   },
   {
     id: "glm-5.2",
-    badge: "compatible · unmeasured",
-    detail: "Accepts think: false per its verified thinking profile.",
-  },
-  {
-    id: "kimi-k3",
-    badge: "compatible · unmeasured",
-    detail: "Accepts think: false per its verified thinking profile.",
-  },
-  {
-    id: "qwen3.5:397b",
-    badge: "compatible · unmeasured",
-    detail: "Accepts think: false per its verified thinking profile.",
-  },
-  {
-    id: "nemotron-3-ultra",
-    badge: "compatible · unmeasured",
-    detail: "Accepts think: false per its verified thinking profile.",
-  },
-  {
-    id: "nemotron-3-super",
-    badge: "compatible · unmeasured",
-    detail: "Accepts think: false per its verified thinking profile.",
-  },
-  {
-    id: "nemotron-3-nano:30b",
-    badge: "compatible · unmeasured",
-    detail: "Accepts think: false per its verified thinking profile.",
+    badge: "measured 1.6s TTFB",
+    detail: "Zero hidden reasoning with think: false and a correct completion; a surrounding code fence is stripped automatically.",
   },
   {
     id: "kimi-k2.6",
     badge: "⚠ measured: narrates",
     detail: "Returns zero reasoning characters but describes the code instead of completing it; not recommended.",
+  },
+  {
+    id: "kimi-k3",
+    badge: "⚠ measured: rewrites",
+    detail: "Re-emits the whole function from its first line instead of filling the cursor; not recommended.",
+  },
+  {
+    id: "kimi-k2.7-code",
+    badge: "⚠ measured: narrates",
+    detail: "Describes the code instead of completing it with think: false; not recommended.",
+  },
+  {
+    id: "qwen3.5:397b",
+    badge: "⚠ measured: narrates",
+    detail: "Explains the normalization approach instead of emitting code; not recommended.",
+  },
+  {
+    id: "nemotron-3-ultra",
+    badge: "⚠ measured: times out",
+    detail: "No completion arrived within a 20s request window; not recommended.",
+  },
+  {
+    id: "nemotron-3-super",
+    badge: "⚠ measured: narrates",
+    detail: "Describes the completed function instead of emitting code; not recommended.",
+  },
+  {
+    id: "nemotron-3-nano:30b",
+    badge: "⚠ measured: narrates",
+    detail: "Narrates a ready-to-run rewrite instead of filling the cursor; not recommended.",
+  },
+  {
+    id: "mistral-large-3:675b",
+    badge: "⚠ measured: narrates",
+    detail: "Natively non-thinking but describes the completion instead of emitting code; not recommended.",
+  },
+  {
+    id: "gpt-oss:20b",
+    badge: "⚠ measured: thinking persists",
+    detail: "Still emitted 400+ hidden reasoning characters with think: false; not recommended.",
+  },
+  {
+    id: "gpt-oss:120b",
+    badge: "⚠ measured: thinking persists",
+    detail: "Still emitted 400+ hidden reasoning characters with think: false; not recommended.",
+  },
+  {
+    id: "minimax-m2.7",
+    badge: "⚠ measured: disable ignored",
+    detail: "Emitted 500+ hidden reasoning characters with think: false; not recommended.",
   },
   {
     id: "deepseek-v4-flash:0731",
