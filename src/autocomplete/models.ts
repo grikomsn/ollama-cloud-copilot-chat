@@ -75,6 +75,16 @@ export const INLINE_MODEL_CANDIDATES: readonly InlineModelCandidate[] = [
     badge: "⚠ measured: narrates",
     detail: "Same narration behavior as the flash variant; not recommended for ghost text.",
   },
+  {
+    id: "glm-5.3-flash",
+    badge: "⚠ measured: narrates",
+    detail: "think: false emits no separate thinking field, but the model narrates its reasoning into the visible content instead of completing (clean on the CrofAI host, broken here); not recommended.",
+  },
+  {
+    id: "glm-5.3",
+    badge: "⚠ measured: narrates",
+    detail: "Same visible-reasoning narration as glm-5.3-flash with think: false; not recommended.",
+  },
 ];
 
 export interface InlineModelChoice {

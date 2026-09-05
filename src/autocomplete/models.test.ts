@@ -21,7 +21,7 @@ test("candidate ids are unique", () => {
 });
 
 test("measured-problem models are marked with a warning badge", () => {
-  for (const id of ["kimi-k2.6", "deepseek-v4-flash:0731", "deepseek-v4-pro:0813"]) {
+  for (const id of ["kimi-k2.6", "deepseek-v4-flash:0731", "deepseek-v4-pro:0813", "glm-5.3-flash", "glm-5.3"]) {
     const candidate = INLINE_MODEL_CANDIDATES.find((item) => item.id === id);
     assert.ok(candidate, `${id} should be listed`);
     assert.equal(candidate.badge.startsWith("⚠"), true, `${id} should carry a warning`);
