@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { registerInlineCompletions } from "./autocomplete";
 import { OllamaCloudAuth } from "./auth/auth";
 import { messageOf } from "./errors";
 import { OllamaCloudProvider } from "./provider";
@@ -26,13 +27,14 @@ export function activate(
 ): OllamaCloudExtensionApi | undefined {
   const output = vscode.window.createOutputChannel("Ollama Cloud");
   const auth = new OllamaCloudAuth(context.secrets);
+  const userAgent = `ollama-cloud-copilot-chat/${context.extension.packageJSON.version} VSCode/${vscode.version}`;
   const storedUsage = context.globalState.get<Readonly<Record<string, OllamaUsageSnapshot>>>(USAGE_STATE_KEY)
     ?? { legacy: context.globalState.get<OllamaUsageSnapshot>(LEGACY_USAGE_STATE_KEY) ?? {} };
   const provider = new OllamaCloudProvider(
     auth,
     context.globalState,
     output,
-    `ollama-cloud-copilot-chat/${context.extension.packageJSON.version} VSCode/${vscode.version}`,
+    userAgent,
     storedUsage,
   );
   const usageStatus = vscode.window.createStatusBarItem(
@@ -68,6 +70,11 @@ export function activate(
       if (event.key === "ollamaCloudCopilot.apiKey") provider.fireDidChange();
     }),
     ...registerCommands(auth, provider, output),
+    registerInlineCompletions(context, {
+      resolveApiKey: () => auth.getApiKey(),
+      output,
+      userAgent,
+    }),
   );
 
   output.appendLine(
