@@ -44,6 +44,30 @@ Thinking, visible output, and tool calls all consume the generated-token allowan
 
 ## Pricing and token accounting
 
-Ollama Cloud access is sold through account plans rather than published per-model token prices. The extension labels model usage as included with the subscription instead of inventing an input/output price. See [Ollama pricing](https://ollama.com/pricing).
+Ollama publishes input, cached-input, and output rates per million tokens for every cloud model on its [pricing page](https://ollama.com/pricing). The extension bundles those rates as model picker metadata: the tooltip shows the published rates and picker fields carry integer-cent `inputCost`, `outputCost`, and `cacheCost` values. Models without a published rate keep a subscription-credit label. Rates are display metadata and never alter requests.
+
+| Model | In $/1M | Cached $/1M | Out $/1M |
+| --- | ---: | ---: | ---: |
+| DeepSeek V4 Flash | 0.22 | 0.007 | 0.66 |
+| DeepSeek V4 Pro | 0.66 | 0.022 | 1.98 |
+| Gemma 4 | 0.14 | 0.05 | 0.40 |
+| GLM 5.1 | 1.00 | 0.20 | 3.20 |
+| GLM 5.2 | 1.40 | 0.26 | 4.40 |
+| GLM 5.3 | 1.40 | 0.26 | 4.40 |
+| GLM 5.3 Flash | 0.15 | 0.03 | 0.50 |
+| GPT-OSS 120B | 0.15 | 0.014 | 0.60 |
+| GPT-OSS 20B | 0.07 | 0.035 | 0.30 |
+| Kimi K2.6 | 0.95 | 0.16 | 4.00 |
+| Kimi K2.7 Code | 0.95 | 0.19 | 4.00 |
+| Kimi K3 | 3.00 | 0.30 | 15.00 |
+| MiniMax M2.7 | 0.30 | 0.06 | 1.20 |
+| MiniMax M3 | 0.60 | 0.12 | 2.40 |
+| Mistral Large 3 | 0.50 | — | 1.50 |
+| Nemotron 3 Nano | 0.06 | — | 0.24 |
+| Nemotron 3 Super | 0.015 | 0.015 | 0.60 |
+| Nemotron 3 Ultra | 0.10 | 0.10 | 3.00 |
+| Qwen 3.5 397B | 0.60 | — | 3.60 |
+
+Family rows cover unlisted tags, while tag-specific rows (GPT-OSS, Qwen 3.5) apply only to those tags, and the picker never invents rates for unknown models. DeepSeek V4 Flash and DeepSeek V4 Pro double these rates during peak hours (12:00–18:00 UTC on weekdays); the picker always shows standard rates. See [Ollama pricing](https://ollama.com/pricing).
 
 Every successfully completed inference reports usage to Copilot Chat. The extension uses Ollama's exact `prompt_eval_count` and `eval_count` when available, preserves counts delivered on separate stream events, and estimates only a missing value from the request and generated output. This prevents VS Code from replacing unknown usage with zero. Locally estimated values are labeled in the usage picker and remain separate from the five-hour and weekly account-utilization percentages, which measure subscription capacity.

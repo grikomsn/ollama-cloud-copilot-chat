@@ -11,6 +11,7 @@ import {
 import { convertMessages, messageMetrics } from "./provider/messages";
 import { apiError, messageOf } from "./errors";
 import { buildThinkingSchema, resolveThinkValue } from "./models/options";
+import { modelPricingFields, ollamaModelCost } from "./models/pricing";
 import {
   mergeAccountUsage,
   recordRequestUsage,
@@ -375,6 +376,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
       : model.capabilities.thinking ? "model-managed thinking" : "no thinking trace";
     const parameters = [model.parameterSize, model.quantization].filter(Boolean).join(" ");
     const retirement = model.retirementDate ? ` · retires ${model.retirementDate}` : "";
+    const pricing = modelPricingFields(ollamaModelCost(model.id));
     return {
       id: credentialRef === "legacy" ? model.id : `${credentialRef}::${model.id}`,
       rawModelId: model.id,
@@ -386,7 +388,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
       tooltip: [
         `${model.id} · ${formatTokens(model.contextLength)} context`,
         `${modalities} · tools ${model.capabilities.toolCalling ? "supported" : "unavailable"} · ${thinking}`,
-        `${TOKEN_PRICING}${parameters ? ` · ${parameters}` : ""}${retirement}`,
+        `${pricing?.pricing ?? TOKEN_PRICING}${parameters ? ` · ${parameters}` : ""}${retirement}`,
       ].join("\n"),
       maxInputTokens: Math.max(1, model.contextLength - maxOutputTokens),
       maxOutputTokens,
@@ -394,6 +396,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
       isBYOK: true,
       requiresAuthorization: { label: `Ollama Cloud (${credentialRef.slice(0, 8)})` },
       ...(thinkingSchema ? { configurationSchema: thinkingSchema } : {}),
+      ...(pricing ?? {}),
       capabilities: {
         imageInput: model.capabilities.imageInput,
         toolCalling: model.capabilities.toolCalling,

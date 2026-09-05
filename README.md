@@ -22,6 +22,7 @@ This native VS Code `LanguageModelChatProvider` validates an Ollama API key, dis
 - Live discovery with six-hour persisted models.dev enrichment
 - Streaming text, separate thinking parts, image inputs, and agent-mode tool calls
 - Verified model-specific thinking controls in the model picker
+- Published per-model input, cached-input, and output pricing metadata
 - Optional Ollama Cloud Web Search tool for agent mode
 - Resilient native and fallback token accounting
 - Status-bar five-hour and weekly subscription usage

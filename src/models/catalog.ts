@@ -9,7 +9,8 @@ import {
 // aliases that left the hosted model list, while continuing to exclude
 // retired model IDs from older caches.
 export const CATALOG_CACHE_KEY = "ollamaCloudCopilot.modelCatalog.v4";
-export const TOKEN_PRICING = "Included with Ollama Cloud subscription · no per-token API charge";
+// Fallback label for models without published Ollama pricing rates.
+export const TOKEN_PRICING = "Metered against Ollama Cloud plan credits · no published rate";
 
 export interface ModelCapabilities {
   readonly imageInput: boolean;
