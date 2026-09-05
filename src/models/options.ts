@@ -48,8 +48,6 @@ const MINIMAX_M3_PROFILE: ThinkingProfile = {
 
 const THINKING_PROFILES = new Map<string, ThinkingProfile>([
   ["deepseek-v4-flash:0731", DEEPSEEK_V4_PROFILE],
-  ["deepseek-v4-flash", DEEPSEEK_V4_PROFILE],
-  ["deepseek-v4-pro", DEEPSEEK_V4_PROFILE],
   ["deepseek-v4-pro:0813", DEEPSEEK_V4_PROFILE],
   ["gemma4:31b", BOOLEAN_PROFILE],
   ["glm-5.1", BOOLEAN_PROFILE],
@@ -58,11 +56,9 @@ const THINKING_PROFILES = new Map<string, ThinkingProfile>([
   ["glm-5.3-flash", GLM_53_PROFILE],
   ["gpt-oss:20b", GPT_OSS_PROFILE],
   ["gpt-oss:120b", GPT_OSS_PROFILE],
-  ["kimi-k2.5", BOOLEAN_PROFILE],
   ["kimi-k2.6", BOOLEAN_PROFILE],
   ["kimi-k2.7-code", BOOLEAN_PROFILE],
   ["kimi-k3", KIMI_K3_PROFILE],
-  ["minimax-m2.5", BOOLEAN_PROFILE],
   ["minimax-m3", MINIMAX_M3_PROFILE],
   ["nemotron-3-nano:30b", BOOLEAN_PROFILE],
   ["nemotron-3-super", BOOLEAN_PROFILE],
