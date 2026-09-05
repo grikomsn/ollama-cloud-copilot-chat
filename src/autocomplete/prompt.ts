@@ -25,16 +25,23 @@ export function buildCompletionPrompt(prefix: string, suffix: string): Completio
 }
 
 /**
- * Strip a single surrounding code fence from a suggestion. Live-measured gemma
+ * Strip code-fence artifacts from a suggestion. Live-measured gemma and glm
  * responses wrap the completion in a ```lang fence; ghost text must insert the
- * bare code. Responses that merely contain fences inline are left untouched.
- * Pure and unit-tested.
+ * bare code. Three shapes are handled: a closed surrounding fence, a dangling
+ * opener left when the token budget truncates the stream before the closing
+ * fence, and an orphan closer. Leading newlines are dropped so ghost text does
+ * not begin with a stray blank line. Responses that merely contain fences
+ * inline are left untouched. Pure and unit-tested.
  */
 export function stripCodeFence(text: string): string {
-  const trimmed = text.trim();
-  if (!trimmed.startsWith("```")) return text;
-  const lines = trimmed.split("\n");
-  if (lines.length < 2) return text;
-  if (!lines[lines.length - 1]?.trim().startsWith("```")) return text;
-  return lines.slice(1, -1).join("\n");
+  const working = text.replace(/^\n+/, "").trimEnd();
+  const closed = /^```[^\n]*\n([\s\S]*?)\n?[ \t]*```[ \t]*$/.exec(working);
+  if (closed) return closed[1] ?? "";
+  // Truncated before the closing fence: drop the dangling ```lang opener.
+  const danglingOpener = /^```[^\n]*\n([\s\S]*)$/.exec(working);
+  if (danglingOpener && !(danglingOpener[1] ?? "").includes("```")) return danglingOpener[1] ?? "";
+  // Orphan closer without its opener.
+  const orphanCloser = /^([\s\S]*?)\n[ \t]*```[ \t]*$/.exec(working);
+  if (orphanCloser && !(orphanCloser[1] ?? "").includes("```")) return orphanCloser[1] ?? "";
+  return working;
 }
