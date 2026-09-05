@@ -6,22 +6,22 @@ The extension discovers the catalog available to the configured account and enri
 
 Authenticated `/api/tags` and `/api/show` metadata remains authoritative. Fields those endpoints omit are enriched from the canonical `ollama-cloud` provider in a six-hour models.dev snapshot stored in VS Code `globalState`. Stale metadata is returned immediately while refresh runs and remains available during models.dev outages.
 
-The fallback snapshot was last updated on 2026-08-22:
+The fallback snapshot was last updated on 2026-09-06:
 
 | Model | Context | Images | Tools | Thinking |
 | --- | ---: | :---: | :---: | :---: |
+| GLM 5.3 | 1.049M | No | Yes | Low / High / Max |
+| GLM 5.3 Flash | 1.049M | Yes | Yes | Low / High / Max |
 | DeepSeek V4 Flash 0731 | 1.049M | No | Yes | Off / High / Max |
 | Kimi K3 | 1.049M | Yes | Yes | Off / Low / High / Max |
 | Kimi K2.7 Code | 262K | Yes | Yes | On / Off |
-| GLM 5.2 | 1M | No | Yes | Off / High / Max |
-| MiniMax M3 | 524K | Yes | Yes | Default / Low / Medium / High / Max |
+| Kimi K2.6 | 262K | Yes | Yes | On / Off |
+| GLM 5.2 | 1.049M | No | Yes | Off / High / Max |
+| MiniMax M3 | 512K | Yes | Yes | Default / Low / Medium / High / Max |
 | Nemotron 3 Ultra | 262K | No | Yes | On / Off |
-| DeepSeek V4 Pro | 1.049M | No | Yes | Off / High / Max |
 | DeepSeek V4 Pro 0813 | 1.049M | No | Yes | Off / High / Max |
-| DeepSeek V4 Flash | 1.049M | No | Yes | Off / High / Max |
 | Gemma 4 31B | 262K | Yes | Yes | On / Off |
 | Qwen 3.5 397B | 262K | Yes | Yes | On / Off |
-| Kimi K2.6 | 262K | Yes | Yes | On / Off |
 | MiniMax M2.7 | 197K | No | Yes | Model-managed |
 | GLM 5.1 | 203K | No | Yes | On / Off |
 | Nemotron 3 Super | 262K | No | Yes | On / Off |
@@ -30,13 +30,13 @@ The fallback snapshot was last updated on 2026-08-22:
 | GPT-OSS 120B | 131K | No | Yes | Low / Medium / High |
 | GPT-OSS 20B | 131K | No | Yes | Low / Medium / High |
 
-Live catalog and `/api/show` results remain authoritative when they differ from this snapshot. Kimi K2.5 and MiniMax M2.5 were removed from the fallback after their 2026-07-31 retirement. See [Cloud model retirements](https://docs.ollama.com/cloud#retirements).
+Live catalog and `/api/show` results remain authoritative when they differ from this snapshot. Kimi K2.5 and MiniMax M2.5 were removed from the fallback after their 2026-07-31 retirement, and the untagged `deepseek-v4-pro` and `deepseek-v4-flash` aliases no longer appear in `/api/tags`, so the fallback carries only their dated `0731` and `0813` tags. GLM 5.2, GLM 5.3 Flash, and Nemotron 3 Nano context windows reflect live `/api/show` values. See [Cloud model retirements](https://docs.ollama.com/cloud#retirements).
 
 Kimi K3 currently requires an Ollama Pro or Max subscription and consumes extra usage credits. See [Kimi K3 on Ollama](https://ollama.com/library/kimi-k3).
 
 ## Thinking
 
-The picker exposes a shared **Reasoning Effort** control only for exact model IDs verified against Ollama Cloud. GPT-OSS supports `low`, `medium`, and `high` and cannot disable thinking. Kimi K3 supports Off plus `low`, `high`, and `max`; its `medium` value behaves as a low-effort alias and is intentionally omitted. GLM 5.2 supports Off, High, and Max; its `low` and `medium` values alias High. DeepSeek V4 supports Off, High, and Max.
+The picker exposes a shared **Reasoning Effort** control only for exact model IDs verified against Ollama Cloud. GPT-OSS supports `low`, `medium`, and `high` and cannot disable thinking. Kimi K3 supports Off plus `low`, `high`, and `max`; its `medium` value behaves as a low-effort alias and is intentionally omitted. GLM 5.2 supports Off, High, and Max; its `low` and `medium` values alias High. GLM 5.3 and GLM 5.3 Flash support Low, High, and Max and cannot disable thinking. DeepSeek V4 supports Off, High, and Max.
 
 Qwen 3.5, GLM 5.1, Kimi K2.6/K2.7 Code, Gemma 4, and Nemotron 3 expose On/Off and default On. Live requests verified that `think: false` suppresses their trace, while their string effort values did not establish distinct ordered levels. Ordered controls default High. MiniMax M3 exposes Default, Low, Medium, High, and Max: High is selected initially, while an explicit Default omits `think` and restores the model's adaptive behavior. Its `think: false` request still returns a trace, so Off is intentionally unavailable. MiniMax M2.7 remains model-managed for the same reason. Mistral Large 3 exposes no thinking control because none of the native values produced a trace. A broad `/api/show` `thinking` capability does not grant controls to an unknown or newly discovered model. See [Ollama thinking](https://docs.ollama.com/capabilities/thinking), [DeepSeek V4 Pro](https://ollama.com/library/deepseek-v4-pro), [MiniMax M3](https://ollama.com/library/minimax-m3), and [Kimi K3](https://ollama.com/library/kimi-k3).
 
@@ -44,6 +44,30 @@ Thinking, visible output, and tool calls all consume the generated-token allowan
 
 ## Pricing and token accounting
 
-Ollama Cloud access is sold through account plans rather than published per-model token prices. The extension labels model usage as included with the subscription instead of inventing an input/output price. See [Ollama pricing](https://ollama.com/pricing).
+Ollama publishes input, cached-input, and output rates per million tokens for every cloud model on its [pricing page](https://ollama.com/pricing). The extension bundles those rates as model picker metadata: the tooltip shows the published rates and picker fields carry integer-cent `inputCost`, `outputCost`, and `cacheCost` values. Models without a published rate keep a subscription-credit label. Rates are display metadata and never alter requests.
+
+| Model | In $/1M | Cached $/1M | Out $/1M |
+| --- | ---: | ---: | ---: |
+| DeepSeek V4 Flash | 0.22 | 0.007 | 0.66 |
+| DeepSeek V4 Pro | 0.66 | 0.022 | 1.98 |
+| Gemma 4 | 0.14 | 0.05 | 0.40 |
+| GLM 5.1 | 1.00 | 0.20 | 3.20 |
+| GLM 5.2 | 1.40 | 0.26 | 4.40 |
+| GLM 5.3 | 1.40 | 0.26 | 4.40 |
+| GLM 5.3 Flash | 0.15 | 0.03 | 0.50 |
+| GPT-OSS 120B | 0.15 | 0.014 | 0.60 |
+| GPT-OSS 20B | 0.07 | 0.035 | 0.30 |
+| Kimi K2.6 | 0.95 | 0.16 | 4.00 |
+| Kimi K2.7 Code | 0.95 | 0.19 | 4.00 |
+| Kimi K3 | 3.00 | 0.30 | 15.00 |
+| MiniMax M2.7 | 0.30 | 0.06 | 1.20 |
+| MiniMax M3 | 0.60 | 0.12 | 2.40 |
+| Mistral Large 3 | 0.50 | — | 1.50 |
+| Nemotron 3 Nano | 0.06 | — | 0.24 |
+| Nemotron 3 Super | 0.015 | 0.015 | 0.60 |
+| Nemotron 3 Ultra | 0.10 | 0.10 | 3.00 |
+| Qwen 3.5 397B | 0.60 | — | 3.60 |
+
+Family rows cover unlisted tags, while tag-specific rows (GPT-OSS, Qwen 3.5) apply only to those tags, and the picker never invents rates for unknown models. DeepSeek V4 Flash and DeepSeek V4 Pro double these rates during peak hours (12:00–18:00 UTC on weekdays); the picker always shows standard rates. See [Ollama pricing](https://ollama.com/pricing).
 
 Every successfully completed inference reports usage to Copilot Chat. The extension uses Ollama's exact `prompt_eval_count` and `eval_count` when available, preserves counts delivered on separate stream events, and estimates only a missing value from the request and generated output. This prevents VS Code from replacing unknown usage with zero. Locally estimated values are labeled in the usage picker and remain separate from the five-hour and weekly account-utilization percentages, which measure subscription capacity.

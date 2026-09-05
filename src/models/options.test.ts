@@ -17,8 +17,6 @@ function model(id: string, family: string, thinking = true): CloudModel {
 
 const EXPECTED_PROFILES = new Map<string, readonly string[]>([
   ["deepseek-v4-flash:0731", ["off", "high", "max"]],
-  ["deepseek-v4-flash", ["off", "high", "max"]],
-  ["deepseek-v4-pro", ["off", "high", "max"]],
   ["deepseek-v4-pro:0813", ["off", "high", "max"]],
   ["gemma4:31b", ["off", "on"]],
   ["glm-5.1", ["off", "on"]],
@@ -27,11 +25,9 @@ const EXPECTED_PROFILES = new Map<string, readonly string[]>([
   ["glm-5.3-flash", ["low", "high", "max"]],
   ["gpt-oss:20b", ["low", "medium", "high"]],
   ["gpt-oss:120b", ["low", "medium", "high"]],
-  ["kimi-k2.5", ["off", "on"]],
   ["kimi-k2.6", ["off", "on"]],
   ["kimi-k2.7-code", ["off", "on"]],
   ["kimi-k3", ["off", "low", "high", "max"]],
-  ["minimax-m2.5", ["off", "on"]],
   ["minimax-m3", ["default", "low", "medium", "high", "max"]],
   ["nemotron-3-nano:30b", ["off", "on"]],
   ["nemotron-3-super", ["off", "on"]],
@@ -57,8 +53,8 @@ test("GPT-OSS supports only low, medium, and high", () => {
   assert.equal(resolveThinkValue(candidate, { reasoningEffort: "max" }), "high");
 });
 
-test("DeepSeek V4 Pro variants support off, high, and max", () => {
-  for (const id of ["deepseek-v4-pro", "deepseek-v4-pro:0813"]) {
+test("DeepSeek V4 Pro supports off, high, and max", () => {
+  for (const id of ["deepseek-v4-pro:0813"]) {
     const candidate = model(id, "deepseek");
     assert.equal(resolveThinkValue(candidate, { reasoningEffort: "off" }), false, id);
     assert.equal(resolveThinkValue(candidate, { reasoningEffort: "high" }), "high", id);

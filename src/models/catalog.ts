@@ -5,10 +5,12 @@ import {
   type ModelsDevModelMetadata,
 } from "./metadata";
 
-// v3 refreshes pre-authentication snapshots with the GLM 5.3 family while
-// continuing to exclude retired model IDs from older caches.
-export const CATALOG_CACHE_KEY = "ollamaCloudCopilot.modelCatalog.v3";
-export const TOKEN_PRICING = "Included with Ollama Cloud subscription · no per-token API charge";
+// v4 drops retired Kimi K2.5 and MiniMax M2.5 plus the untagged DeepSeek V4
+// aliases that left the hosted model list, while continuing to exclude
+// retired model IDs from older caches.
+export const CATALOG_CACHE_KEY = "ollamaCloudCopilot.modelCatalog.v4";
+// Fallback label for models without published Ollama pricing rates.
+export const TOKEN_PRICING = "Metered against Ollama Cloud plan credits · no published rate";
 
 export interface ModelCapabilities {
   readonly imageInput: boolean;
@@ -63,25 +65,21 @@ export type Fetch = (input: string | URL | Request, init?: RequestInit) => Promi
 // output ceilings that /api/show does not currently publish.
 const SNAPSHOT: readonly SnapshotModel[] = [
   { id: "glm-5.3", contextLength: 1048576, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
-  { id: "glm-5.3-flash", contextLength: 1000000, maxOutputTokens: 131072, capabilities: "vision thinking completion tools" },
+  { id: "glm-5.3-flash", contextLength: 1048576, maxOutputTokens: 131072, capabilities: "vision thinking completion tools" },
   { id: "deepseek-v4-flash:0731", contextLength: 1048576, maxOutputTokens: 384000, capabilities: "thinking completion tools" },
   { id: "kimi-k3", contextLength: 1048576, maxOutputTokens: 131072, capabilities: "vision thinking completion tools" },
   { id: "kimi-k2.7-code", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
   { id: "kimi-k2.6", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
-  { id: "kimi-k2.5", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
-  { id: "glm-5.2", contextLength: 976000, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
+  { id: "glm-5.2", contextLength: 1048576, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
   { id: "minimax-m3", contextLength: 512000, maxOutputTokens: 131072, capabilities: "vision thinking completion tools" },
   { id: "nemotron-3-ultra", contextLength: 262144, maxOutputTokens: 128000, capabilities: "thinking completion tools" },
-  { id: "deepseek-v4-pro", contextLength: 1048576, maxOutputTokens: 384000, capabilities: "thinking completion tools" },
   { id: "deepseek-v4-pro:0813", contextLength: 1048576, maxOutputTokens: 384000, capabilities: "thinking completion tools" },
-  { id: "deepseek-v4-flash", contextLength: 1048576, maxOutputTokens: 384000, capabilities: "thinking completion tools" },
   { id: "gemma4:31b", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
   { id: "qwen3.5:397b", contextLength: 262144, maxOutputTokens: 65536, capabilities: "vision thinking completion tools" },
   { id: "minimax-m2.7", contextLength: 196608, maxOutputTokens: 196608, capabilities: "thinking completion tools" },
-  { id: "minimax-m2.5", contextLength: 204800, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
   { id: "glm-5.1", contextLength: 202752, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
   { id: "nemotron-3-super", contextLength: 262144, maxOutputTokens: 65536, capabilities: "thinking completion tools" },
-  { id: "nemotron-3-nano:30b", contextLength: 1048576, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
+  { id: "nemotron-3-nano:30b", contextLength: 262144, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
   { id: "mistral-large-3:675b", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision completion tools" },
   { id: "gpt-oss:120b", contextLength: 131072, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
   { id: "gpt-oss:20b", contextLength: 131072, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
@@ -210,6 +208,7 @@ export function humanizeModelId(id: string): string {
     deepseek: "DeepSeek",
     flash: "Flash",
     gemma: "Gemma",
+    gemma4: "Gemma 4",
     glm: "GLM",
     gpt: "GPT",
     kimi: "Kimi",
@@ -219,6 +218,7 @@ export function humanizeModelId(id: string): string {
     oss: "OSS",
     pro: "Pro",
     qwen: "Qwen",
+    "qwen3.5": "Qwen 3.5",
     super: "Super",
     ultra: "Ultra",
   };

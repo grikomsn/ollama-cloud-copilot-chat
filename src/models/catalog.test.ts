@@ -23,7 +23,7 @@ class MemoryCache implements CatalogCache {
 
 test("fallback catalog includes current cloud models and rich capabilities", () => {
   const models = fallbackModels();
-  assert.equal(models.length, 23);
+  assert.equal(models.length, 19);
   const glm53 = models.find((model) => model.id === "glm-5.3");
   assert.equal(glm53?.contextLength, 1048576);
   assert.equal(glm53?.maxOutputTokens, 131072);
@@ -33,7 +33,7 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
     thinking: true,
   });
   const glm53Flash = models.find((model) => model.id === "glm-5.3-flash");
-  assert.equal(glm53Flash?.contextLength, 1000000);
+  assert.equal(glm53Flash?.contextLength, 1048576);
   assert.equal(glm53Flash?.maxOutputTokens, 131072);
   assert.deepEqual(glm53Flash?.capabilities, {
     imageInput: true,
@@ -48,26 +48,12 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
     toolCalling: true,
     thinking: true,
   });
-  assert.equal(models.some((model) => model.id === "kimi-k2.5"), true);
-  assert.equal(models.some((model) => model.id === "minimax-m2.5"), true);
+  assert.equal(models.some((model) => model.id === "kimi-k2.5"), false);
+  assert.equal(models.some((model) => model.id === "minimax-m2.5"), false);
   assert.equal(models.some((model) => model.id === "deepseek-v4-flash:preview"), false);
-  const deepseekFlash = models.find((model) => model.id === "deepseek-v4-flash");
-  assert.equal(deepseekFlash?.contextLength, 1048576);
-  assert.equal(deepseekFlash?.maxOutputTokens, 384000);
-  assert.deepEqual(deepseekFlash?.capabilities, {
-    imageInput: false,
-    toolCalling: true,
-    thinking: true,
-  });
+  assert.equal(models.some((model) => model.id === "deepseek-v4-flash"), false);
   assert.equal(models.some((model) => model.id === "deepseek-v4-pro:preview"), false);
-  const deepseekPro = models.find((model) => model.id === "deepseek-v4-pro");
-  assert.equal(deepseekPro?.contextLength, 1048576);
-  assert.equal(deepseekPro?.maxOutputTokens, 384000);
-  assert.deepEqual(deepseekPro?.capabilities, {
-    imageInput: false,
-    toolCalling: true,
-    thinking: true,
-  });
+  assert.equal(models.some((model) => model.id === "deepseek-v4-pro"), false);
   const deepseekPro0813 = models.find((model) => model.id === "deepseek-v4-pro:0813");
   assert.equal(deepseekPro0813?.contextLength, 1048576);
   assert.equal(deepseekPro0813?.maxOutputTokens, 384000);
@@ -84,22 +70,10 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
     toolCalling: true,
     thinking: true,
   });
-  const kimiK25 = models.find((model) => model.id === "kimi-k2.5");
-  assert.equal(kimiK25?.contextLength, 262144);
-  assert.equal(kimiK25?.maxOutputTokens, 262144);
-  assert.deepEqual(kimiK25?.capabilities, {
-    imageInput: true,
-    toolCalling: true,
-    thinking: true,
-  });
-  const minimaxM25 = models.find((model) => model.id === "minimax-m2.5");
-  assert.equal(minimaxM25?.contextLength, 204800);
-  assert.equal(minimaxM25?.maxOutputTokens, 131072);
-  assert.deepEqual(minimaxM25?.capabilities, {
-    imageInput: false,
-    toolCalling: true,
-    thinking: true,
-  });
+  const glm52 = models.find((model) => model.id === "glm-5.2");
+  assert.equal(glm52?.contextLength, 1048576);
+  const nano = models.find((model) => model.id === "nemotron-3-nano:30b");
+  assert.equal(nano?.contextLength, 262144);
   const gemma = models.find((model) => model.id === "gemma4:31b");
   assert.equal(gemma?.contextLength, 262144);
   assert.equal(gemma?.maxOutputTokens, 262144);
@@ -130,7 +104,7 @@ test("ignores v1 cached retired models when a catalog refresh fails", async () =
   );
   await assert.rejects(catalog.refresh("not-logged"));
   assert.equal(catalog.get("deepseek-v4-flash:preview"), undefined);
-  assert.notEqual(catalog.get("deepseek-v4-flash"), undefined);
+  assert.notEqual(catalog.get("deepseek-v4-flash:0731"), undefined);
 });
 
 test("ignores v2 snapshots that predate the GLM 5.3 family", () => {
@@ -142,6 +116,36 @@ test("ignores v2 snapshots that predate the GLM 5.3 family", () => {
   const catalog = new ModelCatalog(cache);
   assert.notEqual(catalog.get("glm-5.3"), undefined);
   assert.notEqual(catalog.get("glm-5.3-flash"), undefined);
+});
+
+test("ignores v3 snapshots that predate the Kimi K2.5 retirement", () => {
+  const cache = new MemoryCache();
+  cache.values.set("ollamaCloudCopilot.modelCatalog.v3", [
+    ...fallbackModels(),
+    {
+      id: "kimi-k2.5",
+      name: "Kimi K2.5",
+      family: "kimi",
+      version: "2.5",
+      contextLength: 262144,
+      maxOutputTokens: 262144,
+      capabilities: { imageInput: true, toolCalling: true, thinking: true },
+    },
+    {
+      id: "minimax-m2.5",
+      name: "MiniMax M2.5",
+      family: "minimax",
+      version: "2.5",
+      contextLength: 204800,
+      maxOutputTokens: 131072,
+      capabilities: { imageInput: false, toolCalling: true, thinking: true },
+    },
+  ]);
+
+  const catalog = new ModelCatalog(cache);
+  assert.equal(catalog.get("kimi-k2.5"), undefined);
+  assert.equal(catalog.get("minimax-m2.5"), undefined);
+  assert.notEqual(catalog.get("glm-5.3"), undefined);
 });
 
 test("show metadata overrides context and capabilities", () => {
@@ -307,4 +311,6 @@ test("does not infer tools or thinking when metadata for an unknown model fails"
 test("formats model identifiers for the picker", () => {
   assert.equal(humanizeModelId("gpt-oss:120b"), "GPT OSS 120B");
   assert.equal(humanizeModelId("deepseek-v4-flash:preview"), "DeepSeek V4 Flash Preview");
+  assert.equal(humanizeModelId("gemma4:31b"), "Gemma 4 31B");
+  assert.equal(humanizeModelId("qwen3.5:397b"), "Qwen 3.5 397B");
 });
