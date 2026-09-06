@@ -22,6 +22,13 @@ and `/api/usage`. There is no extension-operated proxy or bundled local server.
 Usage retrieval uses the same bearer API key; it does not access browser
 cookies or scrape the account page.
 
+When `ollamaCloudCopilot.inlineSuggestions` is enabled, each suggestion sends
+a bounded window of the current document (a fixed number of lines before the
+cursor and a bounded suffix after it) plus the stored API key to the same
+`/api/chat` endpoint. Upstream error bodies are never surfaced or logged
+because they can echo prompt context, and suggestion text flows only into the
+editor's ghost text. The feature is disabled by default.
+
 ## Logging
 
 Default logs contain activation, model count, and secret-safe failure details.

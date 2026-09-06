@@ -51,8 +51,22 @@ VS Code stores native provider-entry API keys in its secret storage. The legacy 
 | `ollamaCloudCopilot.catalogCacheMinutes` | `30` | Model metadata refresh interval |
 | `ollamaCloudCopilot.showUsageStatusBar` | `true` | Show five-hour and weekly subscription usage |
 | `ollamaCloudCopilot.debugLogging` | `false` | Log secret-safe request, discovery, and usage metadata |
+| `ollamaCloudCopilot.inlineSuggestions` | `false` | Experimental ghost-text inline completions while typing |
+| `ollamaCloudCopilot.inlineSuggestionsModel` | `gemma4:31b` | Model used for inline completions; pick one that completes cleanly with `think` disabled |
+| `ollamaCloudCopilot.inlineSuggestionsChatInput` | `false` | Also offer suggestions inside the Copilot Chat prompt box |
+| `ollamaCloudCopilot.inlineSuggestionsDebounceMs` | `300` | Debounce between typing and a completion request |
+| `ollamaCloudCopilot.inlineSuggestionsTimeoutMs` | `3000` | Per-request completion timeout |
+| `ollamaCloudCopilot.inlineSuggestionsMaxTokens` | `128` | Tokens generated per suggestion |
+| `ollamaCloudCopilot.inlineSuggestionsPrefixLines` | `10` | Document lines sent before the cursor |
+| `ollamaCloudCopilot.inlineSuggestionsSuffixChars` | `300` | Document characters sent after the cursor |
 
 Prompts, responses, tool data, and API keys are never intentionally written to the output channel.
+
+## Inline suggestions
+
+Inline code suggestions are experimental and off by default. When enabled, each suggestion sends a bounded fill-in-the-middle window (10 lines before the cursor, 300 characters after, both configurable) to the native `https://ollama.com/api/chat` endpoint with `think: false`, so thinking models cannot emit hidden reasoning into ghost text. Live-measured defaults: `gemma4:31b` (751ms total, zero reasoning) and `glm-5.1`. Narration-prone models — GLM 5.3, GLM 5.3 Flash, Kimi K2.6, and the DeepSeek V4 variants describe the code instead of completing it — are not recommended. GLM 5.3 Flash completes cleanly on some other hosts, but with `think: false` Ollama Cloud streams its reasoning into the visible content, so it stays out of the vetted list. A single surrounding code fence is stripped from suggestions. No suggestion appears in the Copilot Chat prompt box unless `ollamaCloudCopilot.inlineSuggestionsChatInput` is enabled.
+
+**Ollama Cloud: Set Inline Suggestions Model** (also in the Manage menu) lists compatible models ordered cheap-and-fast first, each with a measured badge (for example "★ recommended · measured 0.6s TTFB") or a warning for models measured to narrate instead of completing. A "Use a custom model id…" entry keeps any hosted model reachable. The command only writes settings, so changes apply on the next keystroke without a reload.
 
 ## Subscription usage
 
