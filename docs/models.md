@@ -71,3 +71,18 @@ Ollama publishes input, cached-input, and output rates per million tokens for ev
 Family rows cover unlisted tags, while tag-specific rows (GPT-OSS, Qwen 3.5) apply only to those tags, and the picker never invents rates for unknown models. DeepSeek V4 Flash and DeepSeek V4 Pro double these rates during peak hours (12:00–18:00 UTC on weekdays); the picker always shows standard rates. See [Ollama pricing](https://ollama.com/pricing).
 
 Every successfully completed inference reports usage to Copilot Chat. The extension uses Ollama's exact `prompt_eval_count` and `eval_count` when available, preserves counts delivered on separate stream events, and estimates only a missing value from the request and generated output. This prevents VS Code from replacing unknown usage with zero. Locally estimated values are labeled in the usage picker and remain separate from the five-hour and weekly account-utilization percentages, which measure subscription capacity.
+
+## Context window size
+
+Each model entry exposes a Context Window control in the Copilot Chat model
+picker (`src/models/options.ts`). The options are Auto (the default), fixed
+64K, 128K, and 200K tiers that fit below the model's registered input limit
+(context minus the configured maximum output), and Maximum. Auto and Maximum
+keep the default behavior.
+
+A specific tier acts as a local upper limit: the selection is stored per model
+by VS Code, never exceeds the model's registered input limit, and when the
+converted messages exceed the selected tier the oldest conversation turns are
+trimmed before the request is planned (`src/provider/history-trim.ts`). The
+first message, the current turn, and tool-call/result adjacency are always
+preserved, and models without a fitting tier keep their picker unchanged.
