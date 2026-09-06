@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildCompletionPrompt, stripCodeFence } from "./prompt";
+import { buildCompletionPrompt, stripCodeFence, stripSpecialTokens } from "./prompt";
 
 test("emulates fill-in-the-middle with FIM tokens in one user message", () => {
   const prompt = buildCompletionPrompt("before", "after");
@@ -35,4 +35,17 @@ test("leaves unfenced or inline-fenced text untouched", () => {
   assert.equal(stripCodeFence(inline), inline);
   // A nested fence inside a surrounding fence keeps the inner code.
   assert.equal(stripCodeFence("```python\n```js\nx\n```\n```"), "```js\nx\n```");
+});
+
+test("strips echoed special tokens from suggestions", () => {
+  assert.equal(stripSpecialTokens("<|file_separator|>    out.append(x)"), "    out.append(x)");
+  assert.equal(stripSpecialTokens("    out.append(x)<|fim_middle|>"), "    out.append(x)");
+  assert.equal(stripSpecialTokens("<|fim_prefix|>a<|fim_suffix|>b<|fim_middle|>c"), "abc");
+  assert.equal(stripSpecialTokens("    out.append(x)"), "    out.append(x)");
+  assert.equal(stripSpecialTokens("echo <| b; # no closing pair"), "echo <| b; # no closing pair");
+  assert.equal(stripSpecialTokens("<|file_separator|>"), "");
+});
+
+test("token stripping composes with fence stripping in engine order", () => {
+  assert.equal(stripCodeFence(stripSpecialTokens("<|file_separator|>```python\n    out.append(x)\n```")), "    out.append(x)");
 });

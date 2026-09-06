@@ -45,3 +45,17 @@ export function stripCodeFence(text: string): string {
   if (orphanCloser && !(orphanCloser[1] ?? "").includes("```")) return orphanCloser[1] ?? "";
   return working;
 }
+
+/**
+ * Remove special-token artifacts from a suggestion. Models occasionally echo
+ * the injected FIM delimiters (`<|fim_prefix|>`…) or tokenizer specials such
+ * as `<|file_separator|>` into their visible stream; ghost text must never
+ * show them. Only token-shaped `<|word|>` strings are removed, so shell- or
+ * OCaml-style `<|` operators without a matching `|>` pair survive untouched.
+ * Pure and unit-tested.
+ */
+const SPECIAL_TOKEN_PATTERN = /<\|[A-Za-z0-9_.-]{1,48}\|>/g;
+
+export function stripSpecialTokens(text: string): string {
+  return text.replace(SPECIAL_TOKEN_PATTERN, "");
+}
