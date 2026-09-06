@@ -110,6 +110,83 @@ export function resolveThinkValue(
   return value;
 }
 
+/** A selectable context window tier shown on a model's picker configuration. */
+export interface ContextSizeOption {
+  /** Context cap in input tokens; 0 selects the model's default handling. */
+  readonly value: number;
+  /** Short picker label, e.g. "Auto", "128K", or "Maximum". */
+  readonly label: string;
+  /** Picker description for the tier. */
+  readonly description: string;
+}
+
+/** Fixed context tiers offered below a model's registered input limit. */
+const CONTEXT_SIZE_TIERS: readonly { value: number; label: string }[] = [
+  { value: 65_536, label: "64K" },
+  { value: 131_072, label: "128K" },
+  { value: 200_000, label: "200K" },
+];
+
+/** Builds the context window tiers offered for a model's input limit; undefined when no tier fits. */
+export function contextSizeOptions(maxInputTokens: number): ContextSizeOption[] | undefined {
+  if (!Number.isFinite(maxInputTokens) || maxInputTokens <= CONTEXT_SIZE_TIERS[0].value) return undefined;
+  const tiers = CONTEXT_SIZE_TIERS.filter((tier) => tier.value < maxInputTokens);
+  if (!tiers.length) return undefined;
+  return [
+    { value: 0, label: "Auto", description: "Default context handling for this model." },
+    ...tiers.map((tier) => ({
+      value: tier.value,
+      label: tier.label,
+      description: `Keep the conversation under ${tier.label} input tokens.`,
+    })),
+    {
+      value: maxInputTokens,
+      label: "Maximum",
+      description: "Use the model's full available input limit.",
+    },
+  ];
+}
+
+/** Resolves the effective context cap for a request; Auto and Maximum return undefined. */
+export function resolveContextCap(contextSize: number, maxInputTokens: number): number | undefined {
+  if (!Number.isFinite(contextSize) || contextSize <= 0) return undefined;
+  if (!Number.isFinite(maxInputTokens) || maxInputTokens <= 0) return undefined;
+  const cap = Math.min(Math.floor(contextSize), maxInputTokens);
+  return cap < maxInputTokens ? cap : undefined;
+}
+
+/** Reads the opted-in context size from picker configuration; 0 keeps the model's default handling. */
+export function resolveContextSize(configuration: Readonly<Record<string, unknown>> | undefined): number {
+  const value = configuration?.contextSize;
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+}
+
+/** Combines the model's thinking controls with an optional Context Window control. */
+export function buildModelConfigurationSchema(
+  model: CloudModel,
+  contextOptions: readonly ContextSizeOption[] | undefined,
+): { type: "object"; properties: Record<string, Record<string, unknown>> } | undefined {
+  const thinking = buildThinkingSchema(model);
+  if (!thinking && !contextOptions) return undefined;
+  return {
+    type: "object",
+    properties: {
+      ...(thinking?.properties ?? {}),
+      ...(contextOptions ? {
+        contextSize: {
+          type: "number",
+          title: "Context Window",
+          enum: contextOptions.map((option) => option.value),
+          enumItemLabels: contextOptions.map((option) => option.label),
+          enumDescriptions: contextOptions.map((option) => option.description),
+          default: 0,
+          group: "navigation",
+        },
+      } : {}),
+    },
+  };
+}
+
 function label(value: ThinkingChoice): string {
   if (value === "default") return "Default";
   if (value === "off") return "Off";
