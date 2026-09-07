@@ -175,9 +175,15 @@ export function modelFromShow(
   // (for example "gptoss" or "minimax-m3"), while VS Code and the
   // thinking-option resolver need a stable product family.
   const family = inferFamily(id);
-  const contextLength = findContextLength(show.model_info)
-    ?? (hasVerifiedFallback ? undefined : metadata?.contextLength)
-    ?? fallback.contextLength;
+  const liveContextLength = findContextLength(show.model_info);
+  // Verified snapshot models keep a floor on the advertised window: a live
+  // misread or mislabeled architecture-level value (for example a base-model
+  // .context_length reported before the product key) must not collapse the
+  // window below the verified snapshot, while larger live values (upgrades)
+  // still win. Non-snapshot models keep live -> models.dev -> fallback order.
+  const contextLength = hasVerifiedFallback
+    ? Math.max(liveContextLength ?? 0, fallback.contextLength)
+    : liveContextLength ?? metadata?.contextLength ?? fallback.contextLength;
   const maxOutputTokens = hasVerifiedFallback
     ? fallback.maxOutputTokens
     : metadata?.maxOutputTokens ?? fallback.maxOutputTokens;
