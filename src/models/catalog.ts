@@ -176,14 +176,10 @@ export function modelFromShow(
   // thinking-option resolver need a stable product family.
   const family = inferFamily(id);
   const liveContextLength = findContextLength(show.model_info);
-  // Verified snapshot models keep a floor on the advertised window: a live
-  // misread or mislabeled architecture-level value (for example a base-model
-  // .context_length reported before the product key) must not collapse the
-  // window below the verified snapshot, while larger live values (upgrades)
-  // still win. Non-snapshot models keep live -> models.dev -> fallback order.
-  const contextLength = hasVerifiedFallback
-    ? Math.max(liveContextLength ?? 0, fallback.contextLength)
-    : liveContextLength ?? metadata?.contextLength ?? fallback.contextLength;
+  // The hosted limit can change independently of the bundled snapshot.
+  const contextLength = liveContextLength ?? (hasVerifiedFallback
+    ? fallback.contextLength
+    : metadata?.contextLength ?? fallback.contextLength);
   const maxOutputTokens = hasVerifiedFallback
     ? fallback.maxOutputTokens
     : metadata?.maxOutputTokens ?? fallback.maxOutputTokens;
@@ -203,6 +199,9 @@ export function modelFromShow(
 
 export function findContextLength(info: Record<string, unknown> | undefined): number | undefined {
   if (!info) return undefined;
+  const architecture = info["general.architecture"];
+  const architectureContext = typeof architecture === "string" ? info[`${architecture}.context_length`] : undefined;
+  if (validTokenCount(architectureContext)) return architectureContext;
   for (const [key, value] of Object.entries(info)) {
     if (key.endsWith(".context_length") && validTokenCount(value)) return value;
   }

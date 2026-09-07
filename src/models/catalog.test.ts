@@ -218,11 +218,11 @@ test("live context larger than the verified snapshot wins", () => {
   assert.equal(model.contextLength, 2097152);
 });
 
-test("live context smaller than the verified snapshot falls back to the snapshot", () => {
+test("live context smaller than the snapshot remains authoritative", () => {
   const model = modelFromShow("glm-5.3-flash", {
     model_info: { "glm5_next.context_length": 131072 },
   });
-  assert.equal(model.contextLength, 1048576);
+  assert.equal(model.contextLength, 131072);
 });
 
 test("non-snapshot models keep the live context", () => {
@@ -334,4 +334,12 @@ test("formats model identifiers for the picker", () => {
   assert.equal(humanizeModelId("deepseek-v4-flash:preview"), "DeepSeek V4 Flash Preview");
   assert.equal(humanizeModelId("gemma4:31b"), "Gemma 4 31B");
   assert.equal(humanizeModelId("qwen3.5:397b"), "Qwen 3.5 397B");
+});
+
+test("uses the declared architecture instead of the first context field", () => {
+  assert.equal(findContextLength({
+    "base.context_length": 131_072,
+    "general.architecture": "glm5_next",
+    "glm5_next.context_length": 1_048_576,
+  }), 1_048_576);
 });
