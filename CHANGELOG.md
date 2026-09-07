@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.0
+
+### Minor Changes
+
+- af47484: Adds a Context Window picker control (Auto, 64K, 128K, 200K, Maximum) that caps how much conversation history each request sends, clamped to the model's registered input limit.
+
+### Patch Changes
+
+- af47484: Keep the advertised context window for verified snapshot models at or above the verified value: a live `/api/show` misread (for example a base-model `.context_length` reported before the product key) can no longer collapse the picker window below the snapshot, while larger live values (model upgrades) still win.
+- af47484: Fix Auto context size being interpreted as zero input tokens by VS Code, collapsing the context indicator to the output reserve and triggering premature compaction.
+
+  Prefer the declared architecture context field and honor live context limits rather than flooring them at a bundled snapshot.
+
 ## 0.4.0
 
 ### Minor Changes
