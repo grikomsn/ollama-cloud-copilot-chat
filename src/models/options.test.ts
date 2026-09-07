@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { fallbackModels, type CloudModel } from "./catalog";
-import { buildThinkingSchema, resolveThinkValue } from "./options";
+import { buildModelConfigurationSchema, buildThinkingSchema, contextSizeOptions, resolveContextCap, resolveContextSize, resolveThinkValue } from "./options";
 
 function model(id: string, family: string, thinking = true): CloudModel {
   return {
@@ -112,4 +112,53 @@ test("model-managed, unknown, and non-thinking models expose no control", () => 
   assert.equal(resolveThinkValue(model("minimax-m2.7", "minimax"), {}), undefined);
   assert.equal(buildThinkingSchema(model("future-thinking", "future")), undefined);
   assert.equal(buildThinkingSchema(model("mistral-large-3:675b", "mistral", false)), undefined);
+});
+
+test("offers context tiers below the registered input limit", () => {
+  assert.deepEqual(contextSizeOptions(180_224)?.map((option) => option.value), ["auto", 65_536, 131_072, 180_224]);
+  assert.deepEqual(contextSizeOptions(180_224)?.map((option) => option.label), ["Auto", "64K", "128K", "Maximum"]);
+  assert.equal(contextSizeOptions(65_536), undefined);
+  assert.equal(contextSizeOptions(32_000), undefined);
+});
+
+test("combines thinking controls with the Context Window control", () => {
+  const schema = buildModelConfigurationSchema(model("kimi-k3", "kimi"), contextSizeOptions(180_224));
+  assert.deepEqual(schema?.properties.reasoningEffort.enum, ["off", "low", "high", "max"]);
+  assert.deepEqual(schema?.properties.contextSize.enum, ["auto", 65_536, 131_072, 180_224]);
+  assert.equal(schema?.properties.contextSize.default, "auto");
+  assert.equal(schema?.properties.contextSize.group, "tokens");
+  assert.equal(Object.entries(schema!.properties!).find(([, property]) => property.group === "tokens")?.[0], "contextSize");
+
+  const contextOnly = buildModelConfigurationSchema(model("mistral-large-3:675b", "mistral", false), contextSizeOptions(180_224));
+  assert.equal("reasoningEffort" in (contextOnly?.properties ?? {}), false);
+  assert.deepEqual(contextOnly?.properties.contextSize.enum, ["auto", 65_536, 131_072, 180_224]);
+  assert.equal(buildModelConfigurationSchema(model("mistral-large-3:675b", "mistral", false), undefined), undefined);
+});
+
+test("resolves the effective context cap from the selected tier", () => {
+  assert.equal(resolveContextCap(131_072, 180_224), 131_072);
+  assert.equal(resolveContextCap(300_000, 180_224), undefined);
+  assert.equal(resolveContextCap(0, 180_224), undefined);
+  assert.equal(resolveContextCap(-5, 180_224), undefined);
+  assert.equal(resolveContextCap(65_536, 65_536), undefined);
+});
+
+test("reads the context size from picker configuration", () => {
+  assert.equal(resolveContextSize({ contextSize: 131_072 }), 131_072);
+  assert.equal(resolveContextSize({ contextSize: 0 }), 0);
+  assert.equal(resolveContextSize({ contextSize: "131072" }), 0);
+  assert.equal(resolveContextSize(undefined), 0);
+});
+
+// Mirrors VS Code's context indicator contract: numeric selections replace input,
+// while a nonnumeric Auto selection falls back to the registered input limit.
+test("Auto preserves the full context window in the VS Code indicator", () => {
+  for (const input of [78_000, 244_800, 983_040]) {
+    const options = contextSizeOptions(input)!;
+    const auto = options.find((option) => option.label === "Auto")!;
+    const output = 16_384;
+    const displayedInput = typeof auto.value === "number" ? auto.value : input;
+    assert.equal(displayedInput + output, input + output);
+    assert.ok(options.every((option) => typeof option.value !== "number" || option.value > 0));
+  }
 });

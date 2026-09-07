@@ -10,7 +10,8 @@ import {
 } from "./models/catalog";
 import { convertMessages, messageMetrics } from "./provider/messages";
 import { apiError, messageOf } from "./errors";
-import { buildThinkingSchema, resolveThinkValue } from "./models/options";
+import { buildModelConfigurationSchema, buildThinkingSchema, contextSizeOptions, resolveContextCap, resolveContextSize, resolveThinkValue } from "./models/options";
+import { trimHistoryToFit } from "./provider/history-trim";
 import { modelPricingFields, ollamaModelCost } from "./models/pricing";
 import {
   mergeAccountUsage,
@@ -195,14 +196,19 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     );
     const tools = boundTools.tools;
     const think = resolveThinkValue(model, options.modelConfiguration);
+    const configuredMaxOutputTokens = this.configuration.get("maxOutputTokens", 65536);
+    const contextCap = resolveContextCap(
+      resolveContextSize(options.modelConfiguration),
+      Math.max(1, model.contextLength - Math.min(model.maxOutputTokens, Math.max(1, configuredMaxOutputTokens))),
+    );
     const convertedMessages = boundTools.bindMessages(convertMessages(messages));
     const request = buildChatRequestPlan(
       model,
-      convertedMessages,
+      contextCap === undefined ? convertedMessages : [...trimHistoryToFit(convertedMessages, contextCap).items],
       tools,
       think,
       options.toolMode === vscode.LanguageModelChatToolMode.Required,
-      this.configuration.get("maxOutputTokens", 65536),
+      configuredMaxOutputTokens,
       this.charsPerToken.get(calibrationKey(information.credentialRef, model.id)) ?? 4,
     );
 
@@ -238,7 +244,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
       if (!response.body) throw new Error("Ollama Cloud returned an empty response stream");
       if (this.debugLogging) {
         this.output.appendLine(
-          `[request] model=${model.id} think=${String(think)} tools=${tools.length} maxOutput=${request.maxOutputTokens} initiator=${options.requestInitiator ?? "unknown"}`,
+          `[request] model=${model.id} think=${String(think)} tools=${tools.length} maxOutput=${request.maxOutputTokens}${contextCap !== undefined ? ` contextCap=${contextCap}` : ""} initiator=${options.requestInitiator ?? "unknown"}`,
         );
       }
 
@@ -371,6 +377,8 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
       model.maxOutputTokens,
       Math.max(1, this.configuration.get("maxOutputTokens", 65536)),
     );
+    const maxInputTokens = Math.max(1, model.contextLength - maxOutputTokens);
+    const configurationSchema = buildModelConfigurationSchema(model, contextSizeOptions(maxInputTokens));
     const thinking = thinkingSchema
       ? "configurable thinking"
       : model.capabilities.thinking ? "model-managed thinking" : "no thinking trace";
@@ -390,12 +398,12 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
         `${modalities} · tools ${model.capabilities.toolCalling ? "supported" : "unavailable"} · ${thinking}`,
         `${pricing?.pricing ?? TOKEN_PRICING}${parameters ? ` · ${parameters}` : ""}${retirement}`,
       ].join("\n"),
-      maxInputTokens: Math.max(1, model.contextLength - maxOutputTokens),
+      maxInputTokens,
       maxOutputTokens,
       isUserSelectable: true,
       isBYOK: true,
       requiresAuthorization: { label: `Ollama Cloud (${credentialRef.slice(0, 8)})` },
-      ...(thinkingSchema ? { configurationSchema: thinkingSchema } : {}),
+      ...(configurationSchema ? { configurationSchema } : {}),
       ...(pricing ?? {}),
       capabilities: {
         imageInput: model.capabilities.imageInput,

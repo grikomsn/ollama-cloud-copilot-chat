@@ -175,9 +175,11 @@ export function modelFromShow(
   // (for example "gptoss" or "minimax-m3"), while VS Code and the
   // thinking-option resolver need a stable product family.
   const family = inferFamily(id);
-  const contextLength = findContextLength(show.model_info)
-    ?? (hasVerifiedFallback ? undefined : metadata?.contextLength)
-    ?? fallback.contextLength;
+  const liveContextLength = findContextLength(show.model_info);
+  // The hosted limit can change independently of the bundled snapshot.
+  const contextLength = liveContextLength ?? (hasVerifiedFallback
+    ? fallback.contextLength
+    : metadata?.contextLength ?? fallback.contextLength);
   const maxOutputTokens = hasVerifiedFallback
     ? fallback.maxOutputTokens
     : metadata?.maxOutputTokens ?? fallback.maxOutputTokens;
@@ -197,6 +199,9 @@ export function modelFromShow(
 
 export function findContextLength(info: Record<string, unknown> | undefined): number | undefined {
   if (!info) return undefined;
+  const architecture = info["general.architecture"];
+  const architectureContext = typeof architecture === "string" ? info[`${architecture}.context_length`] : undefined;
+  if (validTokenCount(architectureContext)) return architectureContext;
   for (const [key, value] of Object.entries(info)) {
     if (key.endsWith(".context_length") && validTokenCount(value)) return value;
   }
