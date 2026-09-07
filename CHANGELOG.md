@@ -8,10 +8,8 @@
 
 ### Patch Changes
 
-- af47484: Keep the advertised context window for verified snapshot models at or above the verified value: a live `/api/show` misread (for example a base-model `.context_length` reported before the product key) can no longer collapse the picker window below the snapshot, while larger live values (model upgrades) still win.
+- af47484: Prefer the architecture-specific context field from live `/api/show` metadata and treat that live value as authoritative, including model-side context reductions and expansions.
 - af47484: Fix Auto context size being interpreted as zero input tokens by VS Code, collapsing the context indicator to the output reserve and triggering premature compaction.
-
-  Prefer the declared architecture context field and honor live context limits rather than flooring them at a bundled snapshot.
 
 ## 0.4.0
 
