@@ -4,7 +4,7 @@
 
 ## Verification
 
-<!-- List automated and manual checks. -->
+<!-- List the commands or manual checks you ran. -->
 
 ## Checklist
 

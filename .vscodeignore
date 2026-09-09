@@ -1,11 +1,13 @@
 .github/**
 .changeset/**
-.codex/**
 .vscode/**
 .vscode-test/**
+.codex/**
 docs/**
 test/**
-assets/cover.*
+assets/cover.jpg
+assets/Ollama*/**
+assets/*.zip
 tmp/**
 .env*
 .gitignore

@@ -1,6 +1,6 @@
-# Security design
+# Security
 
-## Credentials
+## Credential storage
 
 API keys added through **Manage Language Models** are marked as secret provider
 configuration, so VS Code stores each entry's value in its secret storage. The
@@ -15,7 +15,7 @@ only after explicit user confirmation.
 The runtime does not read `.env`, workspace settings, or process environment
 variables for credentials.
 
-## Network boundary
+## Network destinations
 
 Requests go directly to `https://ollama.com/api/tags`, `/api/show`, `/api/chat`,
 and `/api/usage`. There is no extension-operated proxy or bundled local server.
@@ -47,3 +47,7 @@ falls back to a bundled snapshot. Malformed stream lines fail the request rather
 than turning a truncated response into apparent success. Tool calls are emitted to Copilot as structured requests;
 the extension does not execute tools itself. Malformed usage responses preserve
 the last successful account snapshot and record a secret-safe refresh error.
+
+## Reporting vulnerabilities
+
+Report vulnerabilities according to the [security policy](https://github.com/grikomsn/ollama-cloud-copilot-chat/security/policy) or email [security@nibras.co](mailto:security@nibras.co). Do not disclose credentials, sensitive prompts, or vulnerability details in a public issue.
