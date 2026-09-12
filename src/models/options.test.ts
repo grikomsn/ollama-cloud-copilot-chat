@@ -17,6 +17,7 @@ function model(id: string, family: string, thinking = true): CloudModel {
 
 const EXPECTED_PROFILES = new Map<string, readonly string[]>([
   ["deepseek-v4-flash:0731", ["off", "high", "max"]],
+  ["deepseek-v4.1-flash", ["off", "high", "max"]],
   ["deepseek-v4-pro:0813", ["off", "high", "max"]],
   ["gemma4:31b", ["off", "on"]],
   ["glm-5.1", ["off", "on"]],

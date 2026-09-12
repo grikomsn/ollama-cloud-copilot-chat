@@ -13,6 +13,7 @@ The fallback snapshot was last updated on 2026-09-06:
 | GLM 5.3 | 1.049M | No | Yes | Low / High / Max |
 | GLM 5.3 Flash | 1.049M | Yes | Yes | Low / High / Max |
 | DeepSeek V4 Flash 0731 | 1.049M | No | Yes | Off / High / Max |
+| DeepSeek V4.1 Flash | 1.049M | Yes | Yes | Off / High / Max |
 | Kimi K3 | 1.049M | Yes | Yes | Off / Low / High / Max |
 | Kimi K2.7 Code | 262K | Yes | Yes | On / Off |
 | Kimi K2.6 | 262K | Yes | Yes | On / Off |

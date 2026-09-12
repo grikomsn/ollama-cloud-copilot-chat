@@ -67,6 +67,7 @@ const SNAPSHOT: readonly SnapshotModel[] = [
   { id: "glm-5.3", contextLength: 1048576, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
   { id: "glm-5.3-flash", contextLength: 1048576, maxOutputTokens: 131072, capabilities: "vision thinking completion tools" },
   { id: "deepseek-v4-flash:0731", contextLength: 1048576, maxOutputTokens: 384000, capabilities: "thinking completion tools" },
+  { id: "deepseek-v4.1-flash", contextLength: 1048576, maxOutputTokens: 384000, capabilities: "vision thinking completion tools" },
   { id: "kimi-k3", contextLength: 1048576, maxOutputTokens: 131072, capabilities: "vision thinking completion tools" },
   { id: "kimi-k2.7-code", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
   { id: "kimi-k2.6", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },

@@ -23,7 +23,7 @@ class MemoryCache implements CatalogCache {
 
 test("fallback catalog includes current cloud models and rich capabilities", () => {
   const models = fallbackModels();
-  assert.equal(models.length, 19);
+  assert.equal(models.length, 20);
   const glm53 = models.find((model) => model.id === "glm-5.3");
   assert.equal(glm53?.contextLength, 1048576);
   assert.equal(glm53?.maxOutputTokens, 131072);
