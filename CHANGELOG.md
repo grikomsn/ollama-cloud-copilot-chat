@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1
+
+### Patch Changes
+
+- 6a626a8: Add DeepSeek V4.1 Flash to the cloud model snapshot, thinking-effort profile, and documentation.
+
 ## 0.5.0
 
 ### Minor Changes
