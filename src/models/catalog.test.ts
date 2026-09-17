@@ -23,7 +23,7 @@ class MemoryCache implements CatalogCache {
 
 test("fallback catalog includes current cloud models and rich capabilities", () => {
   const models = fallbackModels();
-  assert.equal(models.length, 20);
+  assert.equal(models.length, 17);
   const glm53 = models.find((model) => model.id === "glm-5.3");
   assert.equal(glm53?.contextLength, 1048576);
   assert.equal(glm53?.maxOutputTokens, 131072);
@@ -40,11 +40,11 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
     toolCalling: true,
     thinking: true,
   });
-  const deepseek = models.find((model) => model.id === "deepseek-v4-flash:0731");
+  const deepseek = models.find((model) => model.id === "deepseek-v4.1-flash");
   assert.equal(deepseek?.contextLength, 1048576);
   assert.equal(deepseek?.maxOutputTokens, 384000);
   assert.deepEqual(deepseek?.capabilities, {
-    imageInput: false,
+    imageInput: true,
     toolCalling: true,
     thinking: true,
   });
@@ -52,8 +52,11 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
   assert.equal(models.some((model) => model.id === "minimax-m2.5"), false);
   assert.equal(models.some((model) => model.id === "deepseek-v4-flash:preview"), false);
   assert.equal(models.some((model) => model.id === "deepseek-v4-flash"), false);
+  assert.equal(models.some((model) => model.id === "deepseek-v4-flash:0731"), false);
   assert.equal(models.some((model) => model.id === "deepseek-v4-pro:preview"), false);
   assert.equal(models.some((model) => model.id === "deepseek-v4-pro"), false);
+  assert.equal(models.some((model) => model.id === "glm-5.1"), false);
+  assert.equal(models.some((model) => model.id === "qwen3.5:397b"), false);
   const deepseekPro0813 = models.find((model) => model.id === "deepseek-v4-pro:0813");
   assert.equal(deepseekPro0813?.contextLength, 1048576);
   assert.equal(deepseekPro0813?.maxOutputTokens, 384000);
@@ -104,7 +107,7 @@ test("ignores v1 cached retired models when a catalog refresh fails", async () =
   );
   await assert.rejects(catalog.refresh("not-logged"));
   assert.equal(catalog.get("deepseek-v4-flash:preview"), undefined);
-  assert.notEqual(catalog.get("deepseek-v4-flash:0731"), undefined);
+  assert.notEqual(catalog.get("deepseek-v4.1-flash"), undefined);
 });
 
 test("ignores v2 snapshots that predate the GLM 5.3 family", () => {
@@ -145,6 +148,25 @@ test("ignores v3 snapshots that predate the Kimi K2.5 retirement", () => {
   const catalog = new ModelCatalog(cache);
   assert.equal(catalog.get("kimi-k2.5"), undefined);
   assert.equal(catalog.get("minimax-m2.5"), undefined);
+  assert.notEqual(catalog.get("glm-5.3"), undefined);
+});
+
+test("ignores v4 snapshots containing models retired on 2026-09-25", () => {
+  const cache = new MemoryCache();
+  const retired = ["deepseek-v4-flash:0731", "glm-5.1", "qwen3.5:397b"];
+  cache.values.set("ollamaCloudCopilot.modelCatalog.v4", retired.map((id) => ({
+    id,
+    name: id,
+    family: "retired",
+    version: "1",
+    contextLength: 262144,
+    maxOutputTokens: 65536,
+    capabilities: { imageInput: false, toolCalling: true, thinking: true },
+  })));
+
+  const catalog = new ModelCatalog(cache);
+  for (const id of retired) assert.equal(catalog.get(id), undefined, id);
+  assert.notEqual(catalog.get("deepseek-v4.1-flash"), undefined);
   assert.notEqual(catalog.get("glm-5.3"), undefined);
 });
 

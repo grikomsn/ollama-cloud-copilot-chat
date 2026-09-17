@@ -5,10 +5,9 @@ import {
   type ModelsDevModelMetadata,
 } from "./metadata";
 
-// v4 drops retired Kimi K2.5 and MiniMax M2.5 plus the untagged DeepSeek V4
-// aliases that left the hosted model list, while continuing to exclude
+// v5 drops the models retiring on 2026-09-25 while continuing to exclude
 // retired model IDs from older caches.
-export const CATALOG_CACHE_KEY = "ollamaCloudCopilot.modelCatalog.v4";
+export const CATALOG_CACHE_KEY = "ollamaCloudCopilot.modelCatalog.v5";
 // Fallback label for models without published Ollama pricing rates.
 export const TOKEN_PRICING = "Metered against Ollama Cloud plan credits · no published rate";
 
@@ -66,7 +65,6 @@ export type Fetch = (input: string | URL | Request, init?: RequestInit) => Promi
 const SNAPSHOT: readonly SnapshotModel[] = [
   { id: "glm-5.3", contextLength: 1048576, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
   { id: "glm-5.3-flash", contextLength: 1048576, maxOutputTokens: 131072, capabilities: "vision thinking completion tools" },
-  { id: "deepseek-v4-flash:0731", contextLength: 1048576, maxOutputTokens: 384000, capabilities: "thinking completion tools" },
   { id: "deepseek-v4.1-flash", contextLength: 1048576, maxOutputTokens: 384000, capabilities: "vision thinking completion tools" },
   { id: "kimi-k3", contextLength: 1048576, maxOutputTokens: 131072, capabilities: "vision thinking completion tools" },
   { id: "kimi-k2.7-code", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
@@ -76,9 +74,7 @@ const SNAPSHOT: readonly SnapshotModel[] = [
   { id: "nemotron-3-ultra", contextLength: 262144, maxOutputTokens: 128000, capabilities: "thinking completion tools" },
   { id: "deepseek-v4-pro:0813", contextLength: 1048576, maxOutputTokens: 384000, capabilities: "thinking completion tools" },
   { id: "gemma4:31b", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
-  { id: "qwen3.5:397b", contextLength: 262144, maxOutputTokens: 65536, capabilities: "vision thinking completion tools" },
   { id: "minimax-m2.7", contextLength: 196608, maxOutputTokens: 196608, capabilities: "thinking completion tools" },
-  { id: "glm-5.1", contextLength: 202752, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
   { id: "nemotron-3-super", contextLength: 262144, maxOutputTokens: 65536, capabilities: "thinking completion tools" },
   { id: "nemotron-3-nano:30b", contextLength: 262144, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
   { id: "mistral-large-3:675b", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision completion tools" },

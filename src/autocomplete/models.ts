@@ -26,11 +26,6 @@ export const INLINE_MODEL_CANDIDATES: readonly InlineModelCandidate[] = [
     detail: "Fastest measured model and the smallest hosted size, so credit use stays low; zero hidden reasoning with think: false. A surrounding code fence is stripped automatically.",
   },
   {
-    id: "glm-5.1",
-    badge: "measured 1.2s TTFB",
-    detail: "Zero hidden reasoning with think: false and clean completions; a solid alternate to the default.",
-  },
-  {
     id: "glm-5.2",
     badge: "measured 1.6s TTFB",
     detail: "Zero hidden reasoning with think: false and a correct completion; a surrounding code fence is stripped automatically.",
@@ -49,11 +44,6 @@ export const INLINE_MODEL_CANDIDATES: readonly InlineModelCandidate[] = [
     id: "kimi-k2.7-code",
     badge: "⚠ measured: narrates",
     detail: "Describes the code instead of completing it with think: false; not recommended.",
-  },
-  {
-    id: "qwen3.5:397b",
-    badge: "⚠ measured: narrates",
-    detail: "Explains the normalization approach instead of emitting code; not recommended.",
   },
   {
     id: "nemotron-3-ultra",
@@ -89,11 +79,6 @@ export const INLINE_MODEL_CANDIDATES: readonly InlineModelCandidate[] = [
     id: "minimax-m2.7",
     badge: "⚠ measured: disable ignored",
     detail: "Emitted 500+ hidden reasoning characters with think: false; not recommended.",
-  },
-  {
-    id: "deepseek-v4-flash:0731",
-    badge: "⚠ measured: narrates",
-    detail: "Zero reasoning characters with think: false but narrates prose instead of completing; not recommended.",
   },
   {
     id: "deepseek-v4-pro:0813",

@@ -6,8 +6,6 @@ test("maps published Ollama Cloud rates for hosted model ids", () => {
   assert.deepEqual(ollamaModelCost("glm-5.3"), { input: 1.4, cacheRead: 0.26, output: 4.4 });
   assert.deepEqual(ollamaModelCost("glm-5.3-flash"), { input: 0.15, cacheRead: 0.03, output: 0.5 });
   assert.deepEqual(ollamaModelCost("glm-5.2"), { input: 1.4, cacheRead: 0.26, output: 4.4 });
-  assert.deepEqual(ollamaModelCost("glm-5.1"), { input: 1, cacheRead: 0.2, output: 3.2 });
-  assert.deepEqual(ollamaModelCost("deepseek-v4-flash:0731"), { input: 0.22, cacheRead: 0.007, output: 0.66 });
   assert.deepEqual(ollamaModelCost("deepseek-v4-pro:0813"), { input: 0.66, cacheRead: 0.022, output: 1.98 });
   assert.deepEqual(ollamaModelCost("gemma4:31b"), { input: 0.14, cacheRead: 0.05, output: 0.4 });
   assert.deepEqual(ollamaModelCost("kimi-k3"), { input: 3, cacheRead: 0.3, output: 15 });
@@ -24,16 +22,21 @@ test("maps published Ollama Cloud rates for hosted model ids", () => {
 test("omits cache pricing where Ollama publishes none", () => {
   assert.deepEqual(ollamaModelCost("mistral-large-3:675b"), { input: 0.5, output: 1.5 });
   assert.deepEqual(ollamaModelCost("nemotron-3-nano:30b"), { input: 0.06, output: 0.24 });
-  assert.deepEqual(ollamaModelCost("qwen3.5:397b"), { input: 0.6, output: 3.6 });
 });
 
 test("resolves family rates for unlisted tags and never guesses tag rates", () => {
   assert.deepEqual(ollamaModelCost("gemma4:12b"), { input: 0.14, cacheRead: 0.05, output: 0.4 });
-  assert.deepEqual(ollamaModelCost("deepseek-v4-flash:future"), { input: 0.22, cacheRead: 0.007, output: 0.66 });
+  assert.equal(ollamaModelCost("deepseek-v4-flash:future"), undefined);
   assert.equal(ollamaModelCost("gpt-oss:70b"), undefined);
   assert.equal(ollamaModelCost("qwen3.5:122b"), undefined);
   assert.equal(ollamaModelCost("kimi-k4"), undefined);
   assert.equal(ollamaModelCost("future-model"), undefined);
+});
+
+test("does not retain pricing for retired model ids", () => {
+  for (const id of ["deepseek-v4-flash:0731", "glm-5.1", "qwen3.5:397b"]) {
+    assert.equal(ollamaModelCost(id), undefined, id);
+  }
 });
 
 test("formats picker pricing fields in integer cents", () => {
