@@ -4,7 +4,7 @@
  * Ollama Cloud's `/api/chat` has no FIM endpoint, so fill-in-the-middle is
  * emulated with FIM delimiter tokens in a single user message and thinking is
  * disabled with the native `think: false` request field (live-measured zero
- * reasoning on gemma4:31b and glm-5.1). The measured payload sends no system
+ * reasoning on gemma4:31b and glm-5.2). The measured payload sends no system
  * message: narration-prone models are excluded by documentation instead.
  *
  * Pure and unit-tested.

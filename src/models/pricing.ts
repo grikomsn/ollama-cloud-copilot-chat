@@ -1,8 +1,8 @@
 // Published Ollama Cloud rates from https://ollama.com/pricing, captured
 // 2026-09-06. The API does not expose pricing, so this table mirrors the
 // pricing page: family rows cover unlisted tags, while tag-specific rows
-// (gpt-oss, qwen3.5:397b) apply only to the listed tags. DeepSeek V4 Flash
-// and DeepSeek V4 Pro double during peak hours (12:00-18:00 UTC Mon-Fri);
+// (gpt-oss) apply only to the listed tags. DeepSeek V4 Pro doubles during
+// peak hours (12:00-18:00 UTC Mon-Fri);
 // the picker always shows standard rates.
 export interface ModelCost {
   readonly input: number;
@@ -19,10 +19,8 @@ export interface ModelPricingFields {
 }
 
 const PUBLISHED_MODEL_COSTS: Readonly<Record<string, ModelCost>> = {
-  "deepseek-v4-flash": { input: 0.22, cacheRead: 0.007, output: 0.66 },
   "deepseek-v4-pro": { input: 0.66, cacheRead: 0.022, output: 1.98 },
   "gemma4": { input: 0.14, cacheRead: 0.05, output: 0.4 },
-  "glm-5.1": { input: 1, cacheRead: 0.2, output: 3.2 },
   "glm-5.2": { input: 1.4, cacheRead: 0.26, output: 4.4 },
   "glm-5.3": { input: 1.4, cacheRead: 0.26, output: 4.4 },
   "glm-5.3-flash": { input: 0.15, cacheRead: 0.03, output: 0.5 },
@@ -37,7 +35,6 @@ const PUBLISHED_MODEL_COSTS: Readonly<Record<string, ModelCost>> = {
   "nemotron-3-nano": { input: 0.06, output: 0.24 },
   "nemotron-3-super": { input: 0.015, cacheRead: 0.015, output: 0.6 },
   "nemotron-3-ultra": { input: 0.1, cacheRead: 0.1, output: 3 },
-  "qwen3.5:397b": { input: 0.6, output: 3.6 },
 };
 
 export function ollamaModelCost(id: string): ModelCost | undefined {

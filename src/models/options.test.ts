@@ -16,11 +16,9 @@ function model(id: string, family: string, thinking = true): CloudModel {
 }
 
 const EXPECTED_PROFILES = new Map<string, readonly string[]>([
-  ["deepseek-v4-flash:0731", ["off", "high", "max"]],
   ["deepseek-v4.1-flash", ["off", "high", "max"]],
   ["deepseek-v4-pro:0813", ["off", "high", "max"]],
   ["gemma4:31b", ["off", "on"]],
-  ["glm-5.1", ["off", "on"]],
   ["glm-5.2", ["off", "high", "max"]],
   ["glm-5.3", ["low", "high", "max"]],
   ["glm-5.3-flash", ["low", "high", "max"]],
@@ -33,7 +31,6 @@ const EXPECTED_PROFILES = new Map<string, readonly string[]>([
   ["nemotron-3-nano:30b", ["off", "on"]],
   ["nemotron-3-super", ["off", "on"]],
   ["nemotron-3-ultra", ["off", "on"]],
-  ["qwen3.5:397b", ["off", "on"]],
 ]);
 
 test("every fallback model has its exact verified thinking profile", () => {
@@ -64,11 +61,10 @@ test("DeepSeek V4 Pro supports off, high, and max", () => {
   }
 });
 
-test("GLM 5.2 defaults to high while GLM 5.1 remains boolean", () => {
+test("GLM 5.2 defaults to high and supports disabling thinking", () => {
   const glm52 = model("glm-5.2", "glm");
   assert.equal(resolveThinkValue(glm52, undefined), "high");
   assert.equal(resolveThinkValue(glm52, { reasoningEffort: "off" }), false);
-  assert.equal(resolveThinkValue(model("glm-5.1", "glm"), undefined), true);
 });
 
 test("GLM 5.3 models default to max and support their documented efforts", () => {
@@ -90,7 +86,7 @@ test("Kimi K3 supports off plus low, high, and max", () => {
 });
 
 test("boolean models map Off and On to native booleans", () => {
-  const candidate = model("qwen3.5:397b", "qwen");
+  const candidate = model("gemma4:31b", "gemma");
   assert.equal(resolveThinkValue(candidate, { reasoningEffort: "off" }), false);
   assert.equal(resolveThinkValue(candidate, { reasoningEffort: "on" }), true);
   assert.equal(resolveThinkValue(candidate, { reasoningEffort: "max" }), true);

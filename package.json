@@ -95,7 +95,7 @@
         "ollamaCloudCopilot.inlineSuggestionsModel": {
           "type": "string",
           "default": "gemma4:31b",
-          "description": "Model id used for inline completions. Choose a model that completes code cleanly with think disabled, such as gemma4:31b or glm-5.1; narration-prone models are not recommended."
+          "description": "Model id used for inline completions. Choose a model that completes code cleanly with think disabled, such as gemma4:31b or glm-5.2; narration-prone models are not recommended."
         },
         "ollamaCloudCopilot.inlineSuggestionsChatInput": {
           "type": "boolean",

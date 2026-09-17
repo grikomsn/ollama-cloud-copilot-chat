@@ -47,11 +47,9 @@ const MINIMAX_M3_PROFILE: ThinkingProfile = {
 };
 
 const THINKING_PROFILES = new Map<string, ThinkingProfile>([
-  ["deepseek-v4-flash:0731", DEEPSEEK_V4_PROFILE],
   ["deepseek-v4.1-flash", DEEPSEEK_V4_PROFILE],
   ["deepseek-v4-pro:0813", DEEPSEEK_V4_PROFILE],
   ["gemma4:31b", BOOLEAN_PROFILE],
-  ["glm-5.1", BOOLEAN_PROFILE],
   ["glm-5.2", GLM_52_PROFILE],
   ["glm-5.3", GLM_53_PROFILE],
   ["glm-5.3-flash", GLM_53_PROFILE],
@@ -64,7 +62,6 @@ const THINKING_PROFILES = new Map<string, ThinkingProfile>([
   ["nemotron-3-nano:30b", BOOLEAN_PROFILE],
   ["nemotron-3-super", BOOLEAN_PROFILE],
   ["nemotron-3-ultra", BOOLEAN_PROFILE],
-  ["qwen3.5:397b", BOOLEAN_PROFILE],
 ]);
 
 export function buildThinkingSchema(model: CloudModel): {
