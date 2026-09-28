@@ -6,6 +6,7 @@ test("maps published Ollama Cloud rates for hosted model ids", () => {
   assert.deepEqual(ollamaModelCost("glm-5.3"), { input: 1.4, cacheRead: 0.26, output: 4.4 });
   assert.deepEqual(ollamaModelCost("glm-5.3-flash"), { input: 0.15, cacheRead: 0.03, output: 0.5 });
   assert.deepEqual(ollamaModelCost("glm-5.2"), { input: 1.4, cacheRead: 0.26, output: 4.4 });
+  assert.deepEqual(ollamaModelCost("deepseek-v4.1-flash"), { input: 0.15, cacheRead: 0.003, output: 0.6 });
   assert.deepEqual(ollamaModelCost("deepseek-v4-pro:0813"), { input: 0.66, cacheRead: 0.022, output: 1.98 });
   assert.deepEqual(ollamaModelCost("gemma4:31b"), { input: 0.14, cacheRead: 0.05, output: 0.4 });
   assert.deepEqual(ollamaModelCost("kimi-k3"), { input: 3, cacheRead: 0.3, output: 15 });

@@ -1,9 +1,10 @@
 // Published Ollama Cloud rates from https://ollama.com/pricing, captured
-// 2026-09-06. The API does not expose pricing, so this table mirrors the
+// 2026-09-28. The API does not expose pricing, so this table mirrors the
 // pricing page: family rows cover unlisted tags, while tag-specific rows
-// (gpt-oss) apply only to the listed tags. DeepSeek V4 Pro doubles during
-// peak hours (12:00-18:00 UTC Mon-Fri);
-// the picker always shows standard rates.
+// (gpt-oss) apply only to the listed tags. DeepSeek V4 Pro and DeepSeek
+// V4.1 Flash publish off-peak rates, applying outside 12:00-18:00 UTC on
+// weekdays and all day on weekends; the picker always shows the off-peak
+// rates, with DeepSeek V4 Pro's primary published rate doubled.
 export interface ModelCost {
   readonly input: number;
   readonly output: number;
@@ -19,6 +20,7 @@ export interface ModelPricingFields {
 }
 
 const PUBLISHED_MODEL_COSTS: Readonly<Record<string, ModelCost>> = {
+  "deepseek-v4.1-flash": { input: 0.15, cacheRead: 0.003, output: 0.6 },
   "deepseek-v4-pro": { input: 0.66, cacheRead: 0.022, output: 1.98 },
   "gemma4": { input: 0.14, cacheRead: 0.05, output: 0.4 },
   "glm-5.2": { input: 1.4, cacheRead: 0.26, output: 4.4 },

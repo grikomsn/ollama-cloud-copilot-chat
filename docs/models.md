@@ -46,6 +46,7 @@ Ollama publishes input, cached-input, and output rates per million tokens for ev
 
 | Model | In $/1M | Cached $/1M | Out $/1M |
 | --- | ---: | ---: | ---: |
+| DeepSeek V4.1 Flash | 0.15 | 0.003 | 0.60 |
 | DeepSeek V4 Pro | 0.66 | 0.022 | 1.98 |
 | Gemma 4 | 0.14 | 0.05 | 0.40 |
 | GLM 5.2 | 1.40 | 0.26 | 4.40 |
@@ -63,7 +64,7 @@ Ollama publishes input, cached-input, and output rates per million tokens for ev
 | Nemotron 3 Super | 0.015 | 0.015 | 0.60 |
 | Nemotron 3 Ultra | 0.10 | 0.10 | 3.00 |
 
-Family rows cover unlisted tags, while tag-specific GPT-OSS rows apply only to those tags, and the picker never invents rates for unknown models. DeepSeek V4 Pro doubles these rates during peak hours (12:00–18:00 UTC on weekdays); the picker always shows standard rates. See [Ollama pricing](https://ollama.com/pricing).
+Family rows cover unlisted tags, while tag-specific GPT-OSS rows apply only to those tags, and the picker never invents rates for unknown models. DeepSeek V4 Pro and DeepSeek V4.1 Flash publish off-peak rates, applying outside 12:00–18:00 UTC on weekdays and all day on weekends; the picker always shows the off-peak rates, and DeepSeek V4 Pro's primary published rate doubles them. See [Ollama pricing](https://ollama.com/pricing).
 
 Every successfully completed inference reports usage to Copilot Chat. The extension uses Ollama's exact `prompt_eval_count` and `eval_count` when available, preserves counts delivered on separate stream events, and estimates only a missing value from the request and generated output. This prevents VS Code from replacing unknown usage with zero. Locally estimated values are labeled in the usage picker and remain separate from the five-hour and weekly account-utilization percentages, which measure subscription capacity.
 
