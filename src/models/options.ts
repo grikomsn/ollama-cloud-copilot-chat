@@ -46,6 +46,31 @@ const MINIMAX_M3_PROFILE: ThinkingProfile = {
   title: "Thinking Effort",
 };
 
+/**
+ * Resolves a thinking profile for ids Ollama Cloud has not snapshotted yet.
+ * Exact ids win; otherwise the family (the id before the first `:`) inherits
+ * the profile verified for that family. Families whose behavior is not uniform
+ * — MiniMax M2.7 stays model-managed because `think: false` still returns a
+ * trace — are deliberately absent, so an unknown tag of those families gets
+ * no picker rather than a wrong one.
+ */
+function thinkingProfile(id: string): ThinkingProfile | undefined {
+  const exact = THINKING_PROFILES.get(id);
+  if (exact) return exact;
+  const family = id.split(":")[0];
+  if (family === "gpt-oss") return GPT_OSS_PROFILE;
+  if (family === "deepseek-v4-pro" || family === "deepseek-v4.1-flash") return DEEPSEEK_V4_PROFILE;
+  if (family === "glm-5.3" || family === "glm-5.3-flash") return GLM_53_PROFILE;
+  if (family === "glm-5.2") return GLM_52_PROFILE;
+  if (family === "kimi-k3") return KIMI_K3_PROFILE;
+  if (family === "minimax-m3") return MINIMAX_M3_PROFILE;
+  if (
+    family === "gemma4" || family === "kimi-k2.6" || family === "kimi-k2.7-code"
+    || family === "nemotron-3-nano" || family === "nemotron-3-super" || family === "nemotron-3-ultra"
+  ) return BOOLEAN_PROFILE;
+  return undefined;
+}
+
 const THINKING_PROFILES = new Map<string, ThinkingProfile>([
   ["deepseek-v4.1-flash", DEEPSEEK_V4_PROFILE],
   ["deepseek-v4-pro:0813", DEEPSEEK_V4_PROFILE],
@@ -69,7 +94,7 @@ export function buildThinkingSchema(model: CloudModel): {
   properties: Record<string, Record<string, unknown>>;
 } | undefined {
   if (!model.capabilities.thinking) return undefined;
-  const profile = THINKING_PROFILES.get(model.id);
+  const profile = thinkingProfile(model.id);
   if (!profile) return undefined;
   return {
     type: "object",
@@ -95,7 +120,7 @@ export function resolveThinkValue(
   configuration: Readonly<Record<string, unknown>> | undefined,
 ): ThinkValue | undefined {
   if (!model.capabilities.thinking) return undefined;
-  const profile = THINKING_PROFILES.get(model.id);
+  const profile = thinkingProfile(model.id);
   if (!profile) return undefined;
   const configured = configuration?.reasoningEffort ?? configuration?.thinkingEffort;
   const normalized = normalizeChoice(configured);
