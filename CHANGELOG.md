@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.4
+
+### Patch Changes
+
+- 87c0905: Give a newly published tag of a verified model family that family's thinking profile, so the reasoning picker keeps working for new tags without a catalog resync.
+
 ## 0.5.3
 
 ### Patch Changes
