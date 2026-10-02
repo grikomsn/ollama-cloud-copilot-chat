@@ -33,6 +33,26 @@ const EXPECTED_PROFILES = new Map<string, readonly string[]>([
   ["nemotron-3-ultra", ["off", "on"]],
 ]);
 
+test("unlisted tags inherit their family's verified profile", () => {
+  for (const [id, values] of [
+    ["gpt-oss:70b", ["low", "medium", "high"]],
+    ["deepseek-v4-pro:future", ["off", "high", "max"]],
+    ["deepseek-v4.1-flash:future", ["off", "high", "max"]],
+    ["glm-5.3:future", ["low", "high", "max"]],
+    ["glm-5.3-flash:future", ["low", "high", "max"]],
+    ["glm-5.2:future", ["off", "high", "max"]],
+    ["kimi-k3:future", ["off", "low", "high", "max"]],
+    ["minimax-m3:future", ["default", "low", "medium", "high", "max"]],
+    ["gemma4:9b", ["off", "on"]],
+    ["nemotron-3-nano:future", ["off", "on"]],
+  ] as const) {
+    assert.deepEqual(buildThinkingSchema(model(id, id))?.properties.reasoningEffort.enum, [...values], id);
+  }
+  // Families that are model-managed or unverified stay without a picker.
+  assert.equal(buildThinkingSchema(model("minimax-m2.7:future", "minimax")), undefined);
+  assert.equal(buildThinkingSchema(model("future-model", "future")), undefined);
+});
+
 test("every fallback model has its exact verified thinking profile", () => {
   for (const candidate of fallbackModels()) {
     const schema = buildThinkingSchema(candidate);
