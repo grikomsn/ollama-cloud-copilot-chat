@@ -6,7 +6,7 @@ The extension discovers the catalog available to the configured account and enri
 
 Authenticated `/api/tags` and `/api/show` metadata remains authoritative. Fields those endpoints omit are enriched from the canonical `ollama-cloud` provider in a six-hour models.dev snapshot stored in VS Code `globalState`. Stale metadata is returned immediately while refresh runs and remains available during models.dev outages.
 
-The fallback snapshot was last updated on 2026-09-17:
+The fallback snapshot was last updated on 2026-10-07:
 
 | Model | Context | Images | Tools | Thinking |
 | --- | ---: | :---: | :---: | :---: |
@@ -24,6 +24,7 @@ The fallback snapshot was last updated on 2026-09-17:
 | MiniMax M2.7 | 197K | No | Yes | Model-managed |
 | Nemotron 3 Super | 262K | No | Yes | On / Off |
 | Nemotron 3 Nano 30B | 262K | No | Yes | On / Off |
+| Mistral Large 4 | 1.049M | Yes | Yes | Model-managed |
 | Mistral Large 3 675B | 262K | Yes | Yes | No |
 | GPT-OSS 120B | 131K | No | Yes | Low / Medium / High |
 | GPT-OSS 20B | 131K | No | Yes | Low / Medium / High |
@@ -60,6 +61,7 @@ Ollama publishes input, cached-input, and output rates per million tokens for ev
 | MiniMax M2.7 | 0.30 | 0.06 | 1.20 |
 | MiniMax M3 | 0.60 | 0.12 | 2.40 |
 | Mistral Large 3 | 0.50 | — | 1.50 |
+| Mistral Large 4 | 1.36 | 0.14 | 4.18 |
 | Nemotron 3 Nano | 0.06 | — | 0.24 |
 | Nemotron 3 Super | 0.015 | 0.015 | 0.60 |
 | Nemotron 3 Ultra | 0.10 | 0.10 | 3.00 |

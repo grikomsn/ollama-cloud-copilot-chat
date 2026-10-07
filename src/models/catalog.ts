@@ -77,6 +77,7 @@ const SNAPSHOT: readonly SnapshotModel[] = [
   { id: "minimax-m2.7", contextLength: 196608, maxOutputTokens: 196608, capabilities: "thinking completion tools" },
   { id: "nemotron-3-super", contextLength: 262144, maxOutputTokens: 65536, capabilities: "thinking completion tools" },
   { id: "nemotron-3-nano:30b", contextLength: 262144, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
+  { id: "mistral-large-4", contextLength: 1048576, maxOutputTokens: 1048576, capabilities: "vision thinking completion tools" },
   { id: "mistral-large-3:675b", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision completion tools" },
   { id: "gpt-oss:120b", contextLength: 131072, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
   { id: "gpt-oss:20b", contextLength: 131072, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
