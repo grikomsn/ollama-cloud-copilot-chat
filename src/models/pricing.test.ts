@@ -18,6 +18,7 @@ test("maps published Ollama Cloud rates for hosted model ids", () => {
   assert.deepEqual(ollamaModelCost("nemotron-3-ultra"), { input: 0.1, cacheRead: 0.1, output: 3 });
   assert.deepEqual(ollamaModelCost("gpt-oss:120b"), { input: 0.15, cacheRead: 0.014, output: 0.6 });
   assert.deepEqual(ollamaModelCost("gpt-oss:20b"), { input: 0.07, cacheRead: 0.035, output: 0.3 });
+  assert.deepEqual(ollamaModelCost("mistral-large-4"), { input: 1.36, cacheRead: 0.14, output: 4.18 });
 });
 
 test("omits cache pricing where Ollama publishes none", () => {
@@ -27,6 +28,7 @@ test("omits cache pricing where Ollama publishes none", () => {
 
 test("resolves family rates for unlisted tags and never guesses tag rates", () => {
   assert.deepEqual(ollamaModelCost("gemma4:12b"), { input: 0.14, cacheRead: 0.05, output: 0.4 });
+  assert.deepEqual(ollamaModelCost("mistral-large-4:future"), { input: 1.36, cacheRead: 0.14, output: 4.18 });
   assert.equal(ollamaModelCost("deepseek-v4-flash:future"), undefined);
   assert.equal(ollamaModelCost("gpt-oss:70b"), undefined);
   assert.equal(ollamaModelCost("qwen3.5:122b"), undefined);
