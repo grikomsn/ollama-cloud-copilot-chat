@@ -36,6 +36,8 @@ This native VS Code `LanguageModelChatProvider` validates an Ollama API key, dis
 
 Composer controls override workspace defaults; ordered thinking controls default to High and verified binary controls default On. Click the Ollama status-bar item to inspect account utilization, per-model requests, and tokens observed by this extension. Account utilization and local token totals remain separate because Ollama limits are GPU/time based.
 
+Forgotten native entries stay blocked across reloads until **Ollama Cloud: Restore Native Entry** is run. Model selections remain stable across key rotation, while old handles and web-search capabilities are revoked.
+
 ## Documentation
 
 - [Setup, commands, settings, and troubleshooting](https://github.com/grikomsn/ollama-cloud-copilot-chat/blob/main/docs/setup.md)

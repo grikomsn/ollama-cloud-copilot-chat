@@ -27,7 +27,7 @@ endpoint. Ollama limits each request to 10 results; the default is 5.
 
 VS Code owns all native provider-entry keys. The extension retains provisioned keys only in memory and does not read command-managed keys or `.env`. Add `entryId` to existing entries and reselect your models after upgrading. Keep that ID when rotating a key; stale model handles fail rather than switching credentials. Use distinct IDs even when display names match.
 
-Select the entry for management with **Ollama Cloud: Select Entry for Usage and Management**, and select the inline account separately with **Ollama Cloud: Select Inline Suggestions Entry**. Both choices persist as IDs, with no fallback to the first discovered key. After a restart, open **Manage Language Models** to provision entries before using these features. Removed native entries can remain in discovery history and memory until reload because VS Code provides no entry-removal callback. **Manage Connection → Forget an observed entry** clears the extension's history and in-memory binding; remove the native entry in VS Code as well.
+Select the entry for management with **Ollama Cloud: Select Entry for Usage and Management**, and select the inline account separately with **Ollama Cloud: Select Inline Suggestions Entry**. Both choices persist as IDs, with no fallback to the first discovered key. After a restart, open **Manage Language Models** to provision entries before using these features. Removed native entries can remain in discovery history and memory until reload because VS Code provides no entry-removal callback. **Ollama Cloud: Forget Native Entry** clears the extension's history and in-memory binding and persists an alias-only block. Automatic discovery cannot restore that entry, including after a restart. Use **Ollama Cloud: Restore Native Entry** deliberately to allow VS Code to provision its configured key again. Forget does not delete the native entry or its VS Code-owned key; remove it in Manage Language Models if you also want that configuration gone. Old model handles and tool capabilities remain invalid after restoration or rotation back to the same key.
 
 ## Commands
 
@@ -36,6 +36,8 @@ Select the entry for management with **Ollama Cloud: Select Entry for Usage and 
 | **Ollama Cloud: Manage Connection** | Select entries, test, refresh, inspect usage or logs, or open native entry management |
 | **Ollama Cloud: Select Entry for Usage and Management** | Choose the provisioned entry used by management commands |
 | **Ollama Cloud: Select Inline Suggestions Entry** | Explicitly bind inline suggestions to a provisioned entry |
+| **Ollama Cloud: Forget Native Entry** | Block an entry and clear its in-memory binding until explicit restoration |
+| **Ollama Cloud: Restore Native Entry** | Remove the alias-only block and allow native provisioning again |
 | **Ollama Cloud: Refresh Models** | Fetch the current hosted catalog and model metadata |
 | **Ollama Cloud: Test Inference** | Send a small live generation request |
 | **Ollama Cloud: Show Subscription Usage** | Refresh and inspect account utilization and local request tokens |

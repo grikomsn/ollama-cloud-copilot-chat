@@ -18,6 +18,8 @@ export function registerCommands(
 ): vscode.Disposable[] {
   return [
     vscode.commands.registerCommand("ollamaCloudCopilot.manage", () => manage(provider, output)),
+    vscode.commands.registerCommand("ollamaCloudCopilot.forgetEntry", () => forgetEntry(provider)),
+    vscode.commands.registerCommand("ollamaCloudCopilot.restoreEntry", () => restoreEntry(provider)),
     vscode.commands.registerCommand("ollamaCloudCopilot.selectEntry", () => selectEntry(provider, false)),
     vscode.commands.registerCommand("ollamaCloudCopilot.selectInlineEntry", () => selectEntry(provider, true)),
     vscode.commands.registerCommand("ollamaCloudCopilot.refreshModels", () => forSelectedEntry(provider, () => refreshModels(provider))),
@@ -42,7 +44,8 @@ async function manage(
     { label: "$(check) Test inference", action: "test" },
     { label: "$(pulse) Show subscription usage", action: "usage" },
     { label: "$(refresh) Refresh models", action: "refresh" },
-    { label: "$(trash) Forget an observed entry", action: "forget" },
+    { label: "$(trash) Forget native entry", action: "forget" },
+    { label: "$(history) Restore native entry", action: "restore" },
     { label: "$(link-external) Open Ollama API keys", action: "open" },
     { label: "$(link-external) Open account usage", action: "openUsage" },
     { label: "$(output) Show logs", action: "logs" },
@@ -60,11 +63,36 @@ async function manage(
   else if (picked.action === "openUsage") await openAccountUsage();
   else if (picked.action === "logs") output.show(true);
   else if (picked.action === "diagnostics") await diagnostics(provider, output);
-  else if (picked.action === "forget") {
-    const ids = [...new Set([...Object.keys(provider.getObservedEntries()), ...provider.getEntries().map((entry) => entry.entryId)])];
-    const entry = await vscode.window.showQuickPick(ids, { title: "Forget discovery history and in-memory credentials; remove the native entry in Manage Language Models" });
-    if (entry) await provider.forgetEntry(entry);
-  }
+  else if (picked.action === "forget") await forgetEntry(provider);
+  else if (picked.action === "restore") await restoreEntry(provider);
+}
+
+async function forgetEntry(provider: OllamaCloudProvider): Promise<void> {
+  try {
+    const ids = [...new Set([...Object.keys(provider.getObservedEntries()), ...provider.getEntries().map((entry) => entry.entryId), ...provider.getForgottenEntries()])];
+    if (!ids.length) {
+      void vscode.window.showInformationMessage("No observed native entries are available to forget.");
+      return;
+    }
+    const entry = await vscode.window.showQuickPick(ids, { title: "Forget native entry until you explicitly restore it" });
+    if (!entry) return;
+    await provider.forgetEntry(entry);
+    void vscode.window.showInformationMessage(`Native entry “${entry}” is blocked until you run Ollama Cloud: Restore Native Entry. VS Code still owns its configured key.`);
+  } catch (error) { void vscode.window.showErrorMessage(messageOf(error)); }
+}
+
+async function restoreEntry(provider: OllamaCloudProvider): Promise<void> {
+  try {
+    const ids = provider.getForgottenEntries();
+    if (!ids.length) {
+      void vscode.window.showInformationMessage("No native entries have been forgotten.");
+      return;
+    }
+    const entry = await vscode.window.showQuickPick(ids, { title: "Restore native entry and allow VS Code to provision its key again" });
+    if (!entry) return;
+    await provider.restoreEntry(entry);
+    void vscode.window.showInformationMessage(`Native entry “${entry}” can be provisioned again. Refresh it in Manage Language Models.`);
+  } catch (error) { void vscode.window.showErrorMessage(messageOf(error)); }
 }
 
 async function pickEntry(provider: OllamaCloudProvider, title: string): Promise<string | undefined> {

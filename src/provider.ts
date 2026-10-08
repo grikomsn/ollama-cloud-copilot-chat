@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { randomUUID } from "node:crypto";
-import { NativeEntries } from "./auth/auth";
+import { nativeEntryId, NativeEntries, type NativeEntryBinding } from "./auth/auth";
 import {
   CATALOG_CACHE_KEY,
   ModelCatalog,
@@ -47,6 +47,7 @@ export interface OllamaCloudModelInformation extends vscode.LanguageModelChatInf
   readonly contextLength: number;
   readonly credentialRef: string;
   readonly entryId: string;
+  readonly entryGeneration: string;
 }
 
 export class OllamaCloudProvider
@@ -83,6 +84,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
   getEntries(): Array<{ entryId: string; credentialRef: string }> { return this.entries.list(); }
 
   selectEntry(entryId: string): void {
+    if (this.entries.isForgotten(entryId)) throw new Error("This native entry is forgotten. Run Ollama Cloud: Restore Native Entry first.");
     const entry = this.entries.list().find((item) => item.entryId === entryId);
     if (!entry) throw new Error("This entry has not been provisioned. Open Manage Language Models and refresh it first.");
     this.activeCredentialRef = entry.credentialRef;
@@ -97,8 +99,15 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
   getObservedEntries(): ReturnType<typeof observedEntries> { return observedEntries(this.cache); }
 
   async forgetEntry(entryId: string): Promise<void> {
-    this.entries.forget(entryId);
+    await this.entries.forget(entryId);
     await observeEntry(this.cache, entryId, undefined);
+    this.changeEmitter.fire();
+  }
+
+  getForgottenEntries(): string[] { return this.entries.forgottenEntries(); }
+
+  async restoreEntry(entryId: string): Promise<void> {
+    await this.entries.restore(entryId);
     this.changeEmitter.fire();
   }
 
@@ -115,9 +124,9 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
   }
 
   async getApiKeyForCapability(capability: string): Promise<string | undefined> {
-    const credentialRef = this.credentialCapabilities.resolve(capability);
-    if (!credentialRef) return undefined;
-    return this.entries.keyForCredential(credentialRef);
+    const binding = this.credentialCapabilities.resolve(capability);
+    if (!binding || !this.entries.matches(binding.entryId, binding.credentialRef, binding.generation)) return undefined;
+    return this.entries.keyForEntry(binding.entryId);
   }
 
   clearUsage(): void {
@@ -158,7 +167,9 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
   ): Promise<OllamaCloudModelInformation[]> {
     if (token.isCancellationRequested) return [];
     if (!options.configuration) return [];
-    const { entryId, credentialRef } = this.entries.register(options.configuration);
+    if (this.entries.isForgotten(nativeEntryId(options.configuration))) return [];
+    const binding = this.entries.register(options.configuration);
+    const { entryId, credentialRef, generation } = binding;
     const apiKey = await this.requireApiKey(false, credentialRef);
     if (this.configuration.get("managementEntry", "") === entryId) this.selectEntry(entryId);
     const catalog = this.catalogFor(credentialRef);
@@ -177,8 +188,10 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
         listener.dispose();
       }
     }
+    if (token.isCancellationRequested || !this.entries.matches(entryId, credentialRef, generation)) return [];
     await observeEntry(this.cache, entryId, catalog.list().length);
-    return catalog.list().map((model) => this.toModelInformation(model, credentialRef, entryId));
+    if (!this.entries.matches(entryId, credentialRef, generation)) return [];
+    return catalog.list().map((model) => this.toModelInformation(model, binding));
   }
 
   async provideLanguageModelChatResponse(
@@ -188,16 +201,19 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     progress: vscode.Progress<vscode.LanguageModelResponsePart2>,
     token: vscode.CancellationToken,
   ): Promise<void> {
-    if (!this.entries.matches(information.entryId, information.credentialRef)) {
+    if (!this.entries.matches(information.entryId, information.credentialRef, information.entryGeneration)) {
       throw new Error("This model belongs to a replaced or removed entry. Refresh it in Manage Language Models.");
     }
     this.activeCredentialRef = information.credentialRef;
     const apiKey = await this.requireApiKey(false, information.credentialRef);
+    if (!this.entries.matches(information.entryId, information.credentialRef, information.entryGeneration)) {
+      throw new Error("This model belongs to a replaced or removed entry. Refresh it in Manage Language Models.");
+    }
     const model = this.catalogFor(information.credentialRef).get(information.rawModelId);
     if (!model) throw new Error(`Unknown Ollama Cloud model: ${information.rawModelId}`);
     const boundTools = bindCredentialToTools(
       convertTools(options.tools),
-      this.credentialCapabilities.issue(information.credentialRef),
+      this.credentialCapabilities.issue({ entryId: information.entryId, credentialRef: information.credentialRef, generation: information.entryGeneration }),
       model.family === "gpt-oss",
     );
     const tools = boundTools.tools;
@@ -361,7 +377,8 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     return { model: model.id, text };
   }
 
-  private toModelInformation(model: CloudModel, credentialRef: string, entryId: string): OllamaCloudModelInformation {
+  private toModelInformation(model: CloudModel, binding: NativeEntryBinding): OllamaCloudModelInformation {
+    const { entryId, credentialRef, generation } = binding;
     const modalities = model.capabilities.imageInput ? "text + images" : "text";
     const thinkingSchema = buildThinkingSchema(model);
     const maxOutputTokens = Math.min(
@@ -381,6 +398,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
       rawModelId: model.id,
       credentialRef,
       entryId,
+      entryGeneration: generation,
       name: model.name,
       family: model.family,
       version: model.version,

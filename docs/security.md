@@ -9,10 +9,9 @@ entry and keeps only a short SHA-256-derived reference in model metadata,
 catalog-cache keys, and usage state.
 
 The extension keeps provisioned keys in memory and never copies them into a
-second secret store. Selection IDs and discovery history contain no keys.
+second secret store. Selection IDs, discovery history, and persisted forgotten-entry blocks contain no keys. Forgotten-entry blocks contain only entry IDs and survive restarts; discovery cannot clear them. Only the explicit Restore Native Entry action allows provisioning again.
 Rotation revokes stale model handles; missing explicit feature selections never
-fall back to another entry. Request capabilities remain bound to the originating
-credential and expire after ten minutes.
+fall back to another entry. Request capabilities remain bound to the originating entry, credential, and opaque generation and expire after ten minutes. Forget and key rotation revoke the generation, so capabilities and stale model handles cannot revive when the same key returns. Entries sharing a key keep separate generation bindings.
 
 The runtime does not read `.env`, workspace settings, or process environment
 variables for credentials.

@@ -18,6 +18,8 @@ test("exposes deliberate native entry selection without command-managed key owne
   const commands = manifest.contributes.commands.map((item: { command: string }) => item.command);
   assert.ok(commands.includes("ollamaCloudCopilot.selectEntry"));
   assert.ok(commands.includes("ollamaCloudCopilot.selectInlineEntry"));
+  assert.ok(commands.includes("ollamaCloudCopilot.forgetEntry"));
+  assert.ok(commands.includes("ollamaCloudCopilot.restoreEntry"));
   assert.ok(!commands.includes("ollamaCloudCopilot.configureApiKey"));
   for (const setting of ["managementEntry", "inlineSuggestionsEntry"]) {
     assert.equal(manifest.contributes.configuration.properties[`ollamaCloudCopilot.${setting}`].default, "");
