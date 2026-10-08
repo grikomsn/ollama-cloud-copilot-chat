@@ -1,10 +1,11 @@
 // Published Ollama Cloud rates from https://ollama.com/pricing, captured
-// 2026-10-07. The API does not expose pricing, so this table mirrors the
+// 2026-10-08. The API does not expose pricing, so this table mirrors the
 // pricing page: family rows cover unlisted tags, while tag-specific rows
 // (gpt-oss) apply only to the listed tags. DeepSeek V4 Pro and DeepSeek
-// V4.1 Flash publish off-peak rates, applying outside 12:00-18:00 UTC on
-// weekdays and all day on weekends; the picker always shows the off-peak
-// rates, with DeepSeek V4 Pro's primary published rate doubled.
+// V4.1 Flash publish off-peak rates as labeled rows, applying outside
+// 12:00-18:00 UTC on weekdays and all day on weekends; the picker always
+// shows the off-peak rates, while each primary published row is the peak
+// rate, exactly double.
 export interface ModelCost {
   readonly input: number;
   readonly output: number;
@@ -34,7 +35,7 @@ const PUBLISHED_MODEL_COSTS: Readonly<Record<string, ModelCost>> = {
   "minimax-m2.7": { input: 0.3, cacheRead: 0.06, output: 1.2 },
   "minimax-m3": { input: 0.6, cacheRead: 0.12, output: 2.4 },
   "mistral-large-3": { input: 0.5, output: 1.5 },
-  "mistral-large-4": { input: 1.36, cacheRead: 0.14, output: 4.18 },
+  "mistral-large-4": { input: 0.68, cacheRead: 0.07, output: 2.09 },
   "nemotron-3-nano": { input: 0.06, output: 0.24 },
   "nemotron-3-super": { input: 0.015, cacheRead: 0.015, output: 0.6 },
   "nemotron-3-ultra": { input: 0.1, cacheRead: 0.1, output: 3 },
