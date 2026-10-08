@@ -16,7 +16,7 @@
 // printed, logged, or committed.
 
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,8 +29,10 @@ const CHANGESET_SUMMARY = "Resync bundled Ollama Cloud snapshot metadata with th
 const MODELS_DEV_URL = "https://models.dev/api.json";
 
 const argv = process.argv.slice(2);
-const APPLY = argv.includes("--apply") || argv.includes("--pr");
+const APPLY = argv.includes("--apply") || argv.includes("--pr") || argv.includes("--ci");
 const CREATE_PR = argv.includes("--pr");
+const reportFileIdx = argv.indexOf("--report-file");
+const reportPath = reportFileIdx >= 0 ? argv[reportFileIdx + 1] : undefined;
 const require_ = createRequire(import.meta.url);
 
 const report = [];
@@ -46,6 +48,8 @@ async function fetchJson(url, init = {}) {
 }
 
 function envKey(name) {
+  const fromEnvironment = process.env[name]?.trim();
+  if (fromEnvironment) return fromEnvironment;
   const file = path.join(ROOT, ".env");
   if (!existsSync(file)) return undefined;
   const match = readFileSync(file, "utf8").match(new RegExp(`^${name}=(.*)$`, "m"));
@@ -55,7 +59,7 @@ function envKey(name) {
 
 function requireBundled() {
   const resolved = path.join(ROOT, "out", "models/catalog.js");
-  if (!existsSync(resolved)) {
+  if (!existsSync(resolved) || srcNewerThan(resolved)) {
     const compiled = spawnSync("npm", ["run", "compile"], { cwd: ROOT, encoding: "utf8" });
     if (compiled.status) {
       console.error(compiled.stderr);
@@ -66,6 +70,21 @@ function requireBundled() {
     catalog: require_(resolved),
     metadata: require_(path.join(ROOT, "out", "models/metadata.js")),
   };
+}
+
+/** True when any TypeScript source is newer than the compiled target. */
+function srcNewerThan(target) {
+  const compiled = statSync(target).mtimeMs;
+  const stack = [path.join(ROOT, "src")];
+  while (stack.length) {
+    const dir = stack.pop();
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) stack.push(full);
+      else if (/\.(?:ts|mts)$/.test(entry.name) && statSync(full).mtimeMs > compiled) return true;
+    }
+  }
+  return false;
 }
 
 const LINE_PATTERN = /{ id: "([^"]+)", contextLength: (\d+), maxOutputTokens: (\d+), capabilities: "([^"]*)" }/;
@@ -232,3 +251,7 @@ main().catch((error) => {
   console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;
 });
+
+if (reportPath) {
+  writeFileSync(reportPath, `${report.join("\n")}\n`);
+}
