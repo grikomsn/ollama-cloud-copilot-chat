@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.6
+
+### Patch Changes
+
+- 91171be: Update Mistral Large 4 published pricing to the halved current rates (In $0.68, Cached $0.07, Out $2.09 per 1M tokens)
+
 ## 0.5.5
 
 ### Patch Changes
