@@ -10,6 +10,7 @@ if (!process.env.OLLAMA_API_KEY?.trim()) {
 }
 
 await runTests({
+  vscodeExecutablePath: process.env.VSCODE_EXECUTABLE_PATH,
   extensionDevelopmentPath: projectRoot,
   extensionTestsPath,
   launchArgs: [

@@ -1,3 +1,4 @@
+import { declaredToolName } from "./tool-name";
 import type { OllamaMessage, OllamaTool } from "../provider/messages";
 import { OLLAMA_WEB_SEARCH_TOOL_NAME } from "./registered/web-search-client";
 
@@ -7,12 +8,13 @@ export interface BoundCredentialTools {
   routeToolCall(name: string, input: Record<string, unknown>): { name: string; input: Record<string, unknown> };
 }
 
-export function bindCredentialToTools(tools: readonly OllamaTool[], capability: string): BoundCredentialTools {
+export function bindCredentialToTools(tools: readonly OllamaTool[], capability: string, harmony = false): BoundCredentialTools {
   const alias = `${OLLAMA_WEB_SEARCH_TOOL_NAME}__${capability.replaceAll("-", "_")}`;
-  return {
-    tools: tools.map((tool) => tool.function.name === OLLAMA_WEB_SEARCH_TOOL_NAME
+  const boundTools = tools.map((tool) => tool.function.name === OLLAMA_WEB_SEARCH_TOOL_NAME
       ? { ...tool, function: { ...tool.function, name: alias } }
-      : tool),
+      : tool);
+  return {
+    tools: boundTools,
     bindMessages: (messages) => messages.map((message) => ({
       ...message,
       ...(message.tool_calls ? {
@@ -23,6 +25,7 @@ export function bindCredentialToTools(tools: readonly OllamaTool[], capability: 
       ...(message.tool_name === OLLAMA_WEB_SEARCH_TOOL_NAME ? { tool_name: alias } : {}),
     })),
     routeToolCall: (name, input) => {
+      name = declaredToolName(name, boundTools, harmony);
       if (name === alias) {
         return {
           name: OLLAMA_WEB_SEARCH_TOOL_NAME,

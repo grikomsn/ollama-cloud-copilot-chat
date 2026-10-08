@@ -1,7 +1,6 @@
 import * as vscode from "vscode";
 import { CONFIG_SECTION, DEFAULT_INLINE_MODEL, INLINE_SUGGESTIONS_MODEL_SETTING } from "../autocomplete/config";
 import { inlineModelChoices } from "../autocomplete/models";
-import { OllamaCloudAuth } from "../auth/auth";
 import { messageOf } from "../errors";
 import { OllamaCloudProvider } from "../provider";
 import { OLLAMA_CLOUD_API, OLLAMA_CLOUD_ORIGIN } from "../transport/protocol";
@@ -14,103 +13,92 @@ const API_KEYS_URL = "https://ollama.com/settings/keys";
 const ACCOUNT_USAGE_URL = "https://ollama.com/settings";
 
 export function registerCommands(
-  auth: OllamaCloudAuth,
   provider: OllamaCloudProvider,
   output: vscode.OutputChannel,
 ): vscode.Disposable[] {
   return [
-    vscode.commands.registerCommand("ollamaCloudCopilot.manage", () => manage(auth, provider, output)),
-    vscode.commands.registerCommand("ollamaCloudCopilot.configureApiKey", () => configureApiKey(provider, output)),
-    vscode.commands.registerCommand("ollamaCloudCopilot.removeApiKey", () => removeApiKey(provider)),
-    vscode.commands.registerCommand("ollamaCloudCopilot.refreshModels", () => refreshModels(provider)),
+    vscode.commands.registerCommand("ollamaCloudCopilot.manage", () => manage(provider, output)),
+    vscode.commands.registerCommand("ollamaCloudCopilot.selectEntry", () => selectEntry(provider, false)),
+    vscode.commands.registerCommand("ollamaCloudCopilot.selectInlineEntry", () => selectEntry(provider, true)),
+    vscode.commands.registerCommand("ollamaCloudCopilot.refreshModels", () => forSelectedEntry(provider, () => refreshModels(provider))),
     vscode.commands.registerCommand("ollamaCloudCopilot.setInlineSuggestionsModel", () => setInlineSuggestionsModel()),
-    vscode.commands.registerCommand("ollamaCloudCopilot.testConnection", () => testConnection(provider, output)),
+    vscode.commands.registerCommand("ollamaCloudCopilot.testConnection", () => forSelectedEntry(provider, () => testConnection(provider, output))),
     vscode.commands.registerCommand("ollamaCloudCopilot.openApiKeys", openApiKeys),
-    vscode.commands.registerCommand("ollamaCloudCopilot.showUsage", () => showUsage(provider, output)),
+    vscode.commands.registerCommand("ollamaCloudCopilot.showUsage", () => forSelectedEntry(provider, () => showUsage(provider, output))),
     vscode.commands.registerCommand("ollamaCloudCopilot.openUsage", openAccountUsage),
-    vscode.commands.registerCommand("ollamaCloudCopilot.diagnostics", () => diagnostics(auth, provider, output)),
+    vscode.commands.registerCommand("ollamaCloudCopilot.diagnostics", () => diagnostics(provider, output)),
   ];
 }
 
 async function manage(
-  auth: OllamaCloudAuth,
   provider: OllamaCloudProvider,
   output: vscode.OutputChannel,
 ): Promise<void> {
-  const configured = await auth.hasApiKey();
-  const choices = configured
-    ? [
-        { label: "$(check) Test Ollama Cloud inference", action: "test" },
-        { label: "$(pulse) Show subscription usage", action: "usage" },
-        { label: "$(refresh) Refresh cloud models", action: "refresh" },
-        { label: "$(zap) Set inline suggestions model", action: "inlineModel" },
-        { label: "$(key) Replace API key", action: "configure" },
-        { label: "$(link-external) Open Ollama API keys", action: "open" },
-        { label: "$(link-external) Open Ollama account usage", action: "openUsage" },
-        { label: "$(output) Show Ollama Cloud logs", action: "logs" },
-        { label: "$(info) Show diagnostics", action: "diagnostics" },
-        { label: "$(trash) Remove API key", action: "remove" },
-      ]
-    : [
-        { label: "$(key) Configure Ollama Cloud API key", action: "configure" },
-        { label: "$(link-external) Open Ollama API keys", action: "open" },
-        { label: "$(link-external) Open Ollama account usage", action: "openUsage" },
-        { label: "$(output) Show Ollama Cloud logs", action: "logs" },
-      ];
-  const picked = await vscode.window.showQuickPick(choices, {
-    title: `Ollama Cloud — API key ${configured ? "configured" : "not configured"}`,
-  });
+  const picked = await vscode.window.showQuickPick([
+    { label: "$(settings-gear) Manage native model entries and API keys", action: "configure" },
+    { label: "$(account) Select entry for usage and management", action: "select" },
+    { label: "$(zap) Select entry for inline suggestions", action: "inlineEntry" },
+    { label: "$(zap) Set inline suggestions model", action: "inlineModel" },
+    { label: "$(check) Test inference", action: "test" },
+    { label: "$(pulse) Show subscription usage", action: "usage" },
+    { label: "$(refresh) Refresh models", action: "refresh" },
+    { label: "$(trash) Forget an observed entry", action: "forget" },
+    { label: "$(link-external) Open Ollama API keys", action: "open" },
+    { label: "$(link-external) Open account usage", action: "openUsage" },
+    { label: "$(output) Show logs", action: "logs" },
+    { label: "$(info) Show diagnostics", action: "diagnostics" },
+  ], { title: "Ollama Cloud — native entries" });
   if (!picked) return;
-  if (picked.action === "configure") await configureApiKey(provider, output);
-  else if (picked.action === "usage") await showUsage(provider, output);
-  else if (picked.action === "refresh") await refreshModels(provider);
+  if (picked.action === "configure") await vscode.commands.executeCommand("workbench.action.chat.manage");
+  else if (picked.action === "select") await selectEntry(provider, false);
+  else if (picked.action === "inlineEntry") await selectEntry(provider, true);
   else if (picked.action === "inlineModel") await setInlineSuggestionsModel();
-  else if (picked.action === "test") await testConnection(provider, output);
+  else if (picked.action === "usage") await forSelectedEntry(provider, () => showUsage(provider, output));
+  else if (picked.action === "refresh") await forSelectedEntry(provider, () => refreshModels(provider));
+  else if (picked.action === "test") await forSelectedEntry(provider, () => testConnection(provider, output));
   else if (picked.action === "open") await openApiKeys();
   else if (picked.action === "openUsage") await openAccountUsage();
   else if (picked.action === "logs") output.show(true);
-  else if (picked.action === "diagnostics") await diagnostics(auth, provider, output);
-  else if (picked.action === "remove") await removeApiKey(provider);
-}
-
-async function configureApiKey(
-  provider: OllamaCloudProvider,
-  output: vscode.OutputChannel,
-): Promise<boolean> {
-  const apiKey = await vscode.window.showInputBox({
-    title: "Configure Ollama Cloud API key",
-    prompt: "The key is validated with Ollama Cloud, then stored in VS Code Secret Storage.",
-    placeHolder: "Paste your Ollama API key",
-    password: true,
-    ignoreFocusOut: true,
-    validateInput: (value) => value.trim() ? undefined : "Enter an Ollama Cloud API key",
-  });
-  if (!apiKey) return false;
-  try {
-    const models = await vscode.window.withProgress(
-      { location: vscode.ProgressLocation.Notification, title: "Validating Ollama Cloud API key…" },
-      () => provider.configureApiKey(apiKey),
-    );
-    output.appendLine(`[auth] API key configured; discovered models=${models.length}`);
-    vscode.window.showInformationMessage(`Ollama Cloud connected. Found ${models.length} hosted models.`);
-    return true;
-  } catch (error) {
-    const message = messageOf(error);
-    output.appendLine(`[auth] API key validation failed: ${message}`);
-    vscode.window.showErrorMessage(`Ollama Cloud API key was not saved: ${message}`);
-    return false;
+  else if (picked.action === "diagnostics") await diagnostics(provider, output);
+  else if (picked.action === "forget") {
+    const ids = [...new Set([...Object.keys(provider.getObservedEntries()), ...provider.getEntries().map((entry) => entry.entryId)])];
+    const entry = await vscode.window.showQuickPick(ids, { title: "Forget discovery history and in-memory credentials; remove the native entry in Manage Language Models" });
+    if (entry) await provider.forgetEntry(entry);
   }
 }
 
-async function removeApiKey(provider: OllamaCloudProvider): Promise<void> {
-  const choice = await vscode.window.showWarningMessage(
-    "Remove the Ollama Cloud API key from VS Code Secret Storage?",
-    { modal: true },
-    "Remove API Key",
-  );
-  if (choice !== "Remove API Key") return;
-  await provider.clearApiKey();
-  vscode.window.showInformationMessage("Ollama Cloud API key removed.");
+async function pickEntry(provider: OllamaCloudProvider, title: string): Promise<string | undefined> {
+  const entries = provider.getEntries();
+  if (!entries.length) {
+    void vscode.window.showInformationMessage("No entries have been provisioned. Open Manage Language Models and refresh an Ollama Cloud entry first.");
+    await vscode.commands.executeCommand("workbench.action.chat.manage");
+    return undefined;
+  }
+  const picked = await vscode.window.showQuickPick(entries.map((entry) => ({ label: entry.entryId })), { title });
+  return picked?.label;
+}
+
+async function selectEntry(provider: OllamaCloudProvider, inline: boolean): Promise<void> {
+  const entryId = await pickEntry(provider, inline ? "Select Ollama Cloud entry for inline suggestions" : "Select Ollama Cloud entry for usage and management");
+  if (!entryId) return;
+  await vscode.workspace.getConfiguration("ollamaCloudCopilot").update(inline ? "inlineSuggestionsEntry" : "managementEntry", entryId, vscode.ConfigurationTarget.Global);
+  if (!inline) provider.selectEntry(entryId);
+}
+
+async function forSelectedEntry(provider: OllamaCloudProvider, action: () => Promise<void>): Promise<void> {
+  try {
+    const entryId = vscode.workspace.getConfiguration("ollamaCloudCopilot").get("managementEntry", "");
+    if (!entryId) {
+      await selectEntry(provider, false);
+      const selected = vscode.workspace.getConfiguration("ollamaCloudCopilot").get("managementEntry", "");
+      if (!selected) return;
+      provider.selectEntry(selected);
+      await action();
+      return;
+    }
+    provider.selectEntry(entryId);
+    await action();
+  } catch (error) { void vscode.window.showErrorMessage(messageOf(error)); }
 }
 
 async function refreshModels(provider: OllamaCloudProvider): Promise<void> {
@@ -213,17 +201,17 @@ async function showUsage(
     { label: "Actions", kind: vscode.QuickPickItemKind.Separator },
     { label: "$(refresh) Refresh usage", action: "refresh" },
     { label: "$(link-external) Open Ollama account usage", action: "open" },
-    { label: "$(key) Configure or replace API key", action: "configure" },
+    { label: "$(settings-gear) Manage model entries and API keys", action: "configure" },
   ];
   const picked = await vscode.window.showQuickPick([...rows, ...actions], {
     title: "Ollama Cloud subscription usage",
-    placeHolder: "Exact account windows from Ollama plus locally tracked inference tokens",
+    placeHolder: "Account activity, available quota windows, and locally tracked inference tokens",
     matchOnDescription: true,
     matchOnDetail: true,
   });
   if (picked?.action === "refresh") await showUsage(provider, output);
   else if (picked?.action === "open") await openAccountUsage();
-  else if (picked?.action === "configure") await configureApiKey(provider, output);
+  else if (picked?.action === "configure") await vscode.commands.executeCommand("workbench.action.chat.manage");
 }
 
 function toUsageQuickPickItem(row: UsageDisplayRow): UsageQuickPickItem {
@@ -244,7 +232,6 @@ function toUsageQuickPickItem(row: UsageDisplayRow): UsageQuickPickItem {
 }
 
 async function diagnostics(
-  auth: OllamaCloudAuth,
   provider: OllamaCloudProvider,
   output: vscode.OutputChannel,
 ): Promise<void> {
@@ -256,7 +243,8 @@ async function diagnostics(
     `- VS Code: ${vscode.version}`,
     `- API endpoint: ${OLLAMA_CLOUD_API}`,
     `- Local Ollama required: no`,
-    `- API key: ${(await auth.hasApiKey()) ? "configured in Secret Storage" : "missing"}`,
+    `- Provisioned native entries: ${provider.getEntries().length}`,
+    `- Observed entry history: ${Object.keys(provider.getObservedEntries()).length} (may include removed entries)`,
     `- Registered models: ${models.length}`,
     `- Session usage (5h): ${usage.session ? `${(usage.session.usedRatio * 100).toFixed(1)}%` : "not loaded"}`,
     `- Weekly usage (7d): ${usage.weekly ? `${(usage.weekly.usedRatio * 100).toFixed(1)}%` : "not loaded"}`,

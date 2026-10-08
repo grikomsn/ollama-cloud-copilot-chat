@@ -38,6 +38,8 @@ export interface RequestUsageProvenance {
 }
 
 export interface OllamaUsageSnapshot {
+  requestActivity?: { requestCount: number; startsAt?: string; endsAt?: string };
+  quotaUnavailable?: boolean;
   session?: AccountUsageWindow;
   weekly?: AccountUsageWindow;
   activityCost?: string;
@@ -81,7 +83,16 @@ export function mergeAccountUsage(
   const session = parseWindow(limits.session);
   const weekly = parseWindow(limits.weekly);
   if (!session && !weekly) {
-    return { ...current, updatedAt, error: "Ollama Cloud usage data did not include account limits" };
+    const totals = isRecord(payload.totals) ? payload.totals : undefined;
+    const count = totals?.request_count;
+    if (typeof count === "number" && Number.isSafeInteger(count) && count >= 0) {
+      return {
+        ...current, session: undefined, weekly: undefined, activityCost: undefined, activityPeriod: undefined,
+        requestActivity: { requestCount: count, startsAt: stringValue(payload.from), endsAt: stringValue(payload.until) },
+        quotaUnavailable: true, updatedAt, error: undefined,
+      };
+    }
+    return { ...current, updatedAt, error: "Ollama Cloud usage data did not include account limits or request activity" };
   }
   return {
     ...current,
@@ -95,6 +106,7 @@ export function mergeAccountUsage(
         endsAt: stringValue(period.ending_at),
       }),
     } : {}),
+    quotaUnavailable: false,
     updatedAt,
     error: undefined,
   };
@@ -139,6 +151,7 @@ export function formatUsageStatusBar(snapshot: OllamaUsageSnapshot): string {
   ].filter(Boolean);
   if (windows.length) return `$(pulse) Ollama ${windows.join(" · ")}`;
   if (snapshot.error) return "$(warning) Ollama usage";
+  if (snapshot.quotaUnavailable) return "$(cloud) Ollama activity";
   return "$(cloud) Ollama Cloud";
 }
 
@@ -146,6 +159,8 @@ export function formatUsageTooltip(snapshot: OllamaUsageSnapshot): string {
   const lines = ["Ollama Cloud subscription usage"];
   if (snapshot.session) lines.push(`Session (5h): ${formatPercent(snapshot.session.usedRatio)} used`);
   if (snapshot.weekly) lines.push(`Weekly (7d): ${formatPercent(snapshot.weekly.usedRatio)} used`);
+  if (snapshot.requestActivity) lines.push(`Account activity: ${snapshot.requestActivity.requestCount.toLocaleString()} requests`);
+  if (snapshot.quotaUnavailable) lines.push("The usage endpoint did not provide quota limits.");
   if (snapshot.tracked) {
     const estimateNote = snapshot.tracked.estimatedRequests
       ? ` (${snapshot.tracked.estimatedRequests.toLocaleString()} included estimates)`
@@ -157,7 +172,7 @@ export function formatUsageTooltip(snapshot: OllamaUsageSnapshot): string {
   if (snapshot.updatedAt) lines.push(`Updated: ${new Date(snapshot.updatedAt).toLocaleString()}`);
   if (snapshot.error) lines.push(`Last refresh: ${snapshot.error}`);
   if (!snapshot.session && !snapshot.weekly && !snapshot.error) {
-    lines.push("Configure an API key to load session and weekly usage.");
+    if (!snapshot.requestActivity) lines.push("Select a provisioned native entry and refresh usage.");
   }
   return lines.join("\n");
 }
@@ -166,6 +181,11 @@ export function formatUsageRows(snapshot: OllamaUsageSnapshot): UsageDisplayRow[
   const rows: UsageDisplayRow[] = [];
   if (snapshot.session) rows.push(windowRow("session", "Session usage (5h)", snapshot.session));
   if (snapshot.weekly) rows.push(windowRow("weekly", "Weekly usage (7d)", snapshot.weekly));
+  if (snapshot.requestActivity) rows.push({
+    kind: "activity", label: "Account request activity", description: `${snapshot.requestActivity.requestCount.toLocaleString()} requests`,
+    detail: [snapshot.requestActivity.startsAt, snapshot.requestActivity.endsAt].filter(Boolean).join(" – "),
+  });
+  if (snapshot.quotaUnavailable) rows.push({ kind: "warning", label: "Quota limits unavailable", description: "The endpoint returned request activity without quota windows." });
   if (snapshot.activityCost !== undefined) {
     rows.push({
       kind: "activity",
@@ -206,7 +226,7 @@ export function formatUsageRows(snapshot: OllamaUsageSnapshot): UsageDisplayRow[
     rows.push({
       kind: "empty",
       label: "Subscription usage not loaded",
-      description: "Configure an Ollama Cloud API key or refresh usage",
+      description: "Select a provisioned native entry and refresh usage",
     });
   }
   return rows;

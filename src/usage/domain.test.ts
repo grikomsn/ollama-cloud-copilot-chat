@@ -97,3 +97,16 @@ test("preserves stale usage and reports malformed refresh data", () => {
   assert.match(next.error ?? "", /did not include/);
   assert.equal(formatUsageStatusBar(next), "$(pulse) Ollama 5h 25% · 7d 50%");
 });
+
+test("reports current request activity without inventing or retaining stale quota windows", () => {
+  const snapshot = mergeAccountUsage({ session: { usedRatio: 0.5, models: [] }, tracked: { requests: 1, promptTokens: 10, completionTokens: 5, totalTokens: 15 } }, {
+    from: "2026-10-01T00:00:00Z", until: "2026-10-08T00:00:00Z", totals: { request_count: 12 }, buckets: [],
+  }, 123);
+  assert.equal(snapshot.session, undefined);
+  assert.equal(snapshot.weekly, undefined);
+  assert.equal(snapshot.error, undefined);
+  assert.equal(snapshot.quotaUnavailable, true);
+  assert.equal(snapshot.requestActivity?.requestCount, 12);
+  assert.equal(snapshot.tracked?.totalTokens, 15);
+  assert.match(formatUsageRows(snapshot).find((row) => row.label === "Quota limits unavailable")?.description ?? "", /without quota windows/);
+});

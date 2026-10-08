@@ -1,35 +1,54 @@
 import { createHash } from "node:crypto";
 
-export const API_KEY_SECRET = "ollamaCloudCopilot.apiKey";
-
 export function credentialReference(apiKey: string): string {
   return createHash("sha256").update(apiKey.trim()).digest("hex").slice(0, 16);
 }
 
-export interface SecretStore {
-  get(key: string): PromiseLike<string | undefined>;
-  store(key: string, value: string): PromiseLike<void>;
-  delete(key: string): PromiseLike<void>;
+export function nativeEntryId(configuration: Readonly<Record<string, unknown>>): string {
+  const value = configuration.entryId;
+  if (typeof value !== "string" || !/^[a-z0-9][a-z0-9._-]{0,63}$/.test(value)) {
+    throw new Error("Set a unique entryId in Manage Language Models: 1-64 lowercase letters, numbers, dots, underscores, or hyphens");
+  }
+  return value;
 }
 
-export class OllamaCloudAuth {
-  constructor(private readonly secrets: SecretStore) {}
+/** Secrets are supplied by VS Code during provisioning and stay in memory here. */
+export class NativeEntries {
+  private readonly entries = new Map<string, string>();
+  private readonly keys = new Map<string, string>();
 
-  async hasApiKey(): Promise<boolean> {
-    return Boolean(await this.getApiKey());
+  register(configuration: Readonly<Record<string, unknown>>): { entryId: string; credentialRef: string } {
+    const entryId = nativeEntryId(configuration);
+    const apiKey = typeof configuration.apiKey === "string" ? configuration.apiKey.trim() : "";
+    if (!apiKey) throw new Error("Set the API key for this entry in Manage Language Models");
+    const previous = this.entries.get(entryId);
+    const credentialRef = credentialReference(apiKey);
+    this.entries.set(entryId, credentialRef);
+    this.keys.set(credentialRef, apiKey);
+    if (previous && previous !== credentialRef) this.prune(previous);
+    return { entryId, credentialRef };
   }
 
-  async getApiKey(): Promise<string | undefined> {
-    return (await this.secrets.get(API_KEY_SECRET))?.trim() || undefined;
+  list(): Array<{ entryId: string; credentialRef: string }> {
+    return [...this.entries].map(([entryId, credentialRef]) => ({ entryId, credentialRef }));
   }
 
-  async storeApiKey(value: string): Promise<void> {
-    const apiKey = value.trim();
-    if (!apiKey) throw new Error("Ollama Cloud API key cannot be empty");
-    await this.secrets.store(API_KEY_SECRET, apiKey);
+  matches(entryId: string, credentialRef: string): boolean { return this.entries.get(entryId) === credentialRef; }
+
+  keyForCredential(credentialRef: string): string | undefined { return this.keys.get(credentialRef); }
+
+  keyForEntry(entryId: string): string | undefined {
+    const ref = this.entries.get(nativeEntryId({ entryId }));
+    return ref ? this.keys.get(ref) : undefined;
   }
 
-  async clearApiKey(): Promise<void> {
-    await this.secrets.delete(API_KEY_SECRET);
+  forget(entryId: string): void {
+    const ref = this.entries.get(entryId);
+    this.entries.delete(entryId);
+    if (ref) this.prune(ref);
+  }
+
+  private prune(credentialRef: string): void {
+    if (![...this.entries.values()].includes(credentialRef)) this.keys.delete(credentialRef);
   }
 }

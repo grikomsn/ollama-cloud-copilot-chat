@@ -52,14 +52,6 @@
         "title": "Ollama Cloud: Manage Connection"
       },
       {
-        "command": "ollamaCloudCopilot.configureApiKey",
-        "title": "Ollama Cloud: Configure API Key"
-      },
-      {
-        "command": "ollamaCloudCopilot.removeApiKey",
-        "title": "Ollama Cloud: Remove API Key"
-      },
-      {
         "command": "ollamaCloudCopilot.refreshModels",
         "title": "Ollama Cloud: Refresh Models"
       },
@@ -82,6 +74,14 @@
       {
         "command": "ollamaCloudCopilot.diagnostics",
         "title": "Ollama Cloud: Show Diagnostics"
+      },
+      {
+        "command": "ollamaCloudCopilot.selectEntry",
+        "title": "Ollama Cloud: Select Entry for Usage and Management"
+      },
+      {
+        "command": "ollamaCloudCopilot.selectInlineEntry",
+        "title": "Ollama Cloud: Select Inline Suggestions Entry"
       }
     ],
     "configuration": {
@@ -165,12 +165,22 @@
         "ollamaCloudCopilot.showUsageStatusBar": {
           "type": "boolean",
           "default": true,
-          "description": "Show exact Ollama Cloud session and weekly subscription usage in the VS Code status bar."
+          "description": "Show Ollama Cloud usage in the status bar; quota windows appear only when supplied by the endpoint."
         },
         "ollamaCloudCopilot.debugLogging": {
           "type": "boolean",
           "default": false,
           "description": "Log request, discovery, and usage metadata. API keys, prompts, responses, and tool data are never logged."
+        },
+        "ollamaCloudCopilot.managementEntry": {
+          "type": "string",
+          "default": "",
+          "description": "Native entry ID selected for subscription usage and management commands. Provision the entry in Manage Language Models after a restart."
+        },
+        "ollamaCloudCopilot.inlineSuggestionsEntry": {
+          "type": "string",
+          "default": "",
+          "description": "Native entry ID explicitly selected for inline suggestions. An unavailable entry never falls back to another account."
         }
       }
     },
@@ -181,7 +191,8 @@
         "configuration": {
           "type": "object",
           "required": [
-            "apiKey"
+            "apiKey",
+            "entryId"
           ],
           "properties": {
             "apiKey": {
@@ -189,6 +200,12 @@
               "title": "Ollama Cloud API Key",
               "description": "API key for this Ollama Cloud model-provider entry. VS Code stores configured secrets securely.",
               "secret": true
+            },
+            "entryId": {
+              "type": "string",
+              "title": "Stable entry ID",
+              "description": "Unique lowercase ID for model selections and feature routing. Keep this ID when rotating the API key.",
+              "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
             }
           }
         }
