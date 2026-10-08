@@ -26,7 +26,7 @@ export function activate(
   context: vscode.ExtensionContext,
 ): OllamaCloudExtensionApi | undefined {
   const output = vscode.window.createOutputChannel("Ollama Cloud");
-  const entries = new NativeEntries();
+  const entries = new NativeEntries(context.globalState);
   const userAgent = `ollama-cloud-copilot-chat/${context.extension.packageJSON.version} VSCode/${vscode.version}`;
   const storedUsage = context.globalState.get<Readonly<Record<string, OllamaUsageSnapshot>>>(USAGE_STATE_KEY)
     ?? {};

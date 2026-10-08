@@ -82,6 +82,14 @@
       {
         "command": "ollamaCloudCopilot.selectInlineEntry",
         "title": "Ollama Cloud: Select Inline Suggestions Entry"
+      },
+      {
+        "command": "ollamaCloudCopilot.forgetEntry",
+        "title": "Ollama Cloud: Forget Native Entry"
+      },
+      {
+        "command": "ollamaCloudCopilot.restoreEntry",
+        "title": "Ollama Cloud: Restore Native Entry"
       }
     ],
     "configuration": {
