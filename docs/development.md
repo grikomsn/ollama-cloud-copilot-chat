@@ -22,14 +22,13 @@ paths use injected fetch fakes; the normal test suite never reads `.env` or
 calls Ollama Cloud. `npm run test:vscode` is the explicit live smoke test: it
 reads `OLLAMA_API_KEY` from the process environment, launches an isolated VS
 Code test host, discovers the current catalog, performs one small inference,
-loads authenticated session and weekly usage, and verifies VS Code registered
-the models and usage commands. It does not save the key.
+loads authenticated request activity or quota windows, and checks native response parts, parallel tools, follow-up history, and usage commands in the extension host. It does not save the key. Set `VSCODE_EXECUTABLE_PATH` to use an installed VS Code binary.
 
 ## Extension Development Host
 
 1. Open this repository in VS Code.
 2. Press F5 and choose **Run Extension**.
-3. In the new window, run **Ollama Cloud: Configure API Key**.
+3. In the new window, open **Manage Language Models** and add an Ollama Cloud entry with an `entryId` and secret API key.
 4. Run **Ollama Cloud: Test Inference**.
 5. Open Copilot Chat and confirm the Ollama Cloud model group appears.
 6. Check a vision model accepts an image.
@@ -60,3 +59,7 @@ Initial provider research referenced Ollama's official
 the [Ollama API documentation](https://docs.ollama.com/llms-full.txt), and
 VS Code's
 [Language Model Chat Provider guide](https://code.visualstudio.com/api/extension-guides/ai/language-model-chat-provider).
+
+## Native contract checks
+
+After `npm run compile`, launch VS Code with this repository as the extension development path and `test/native/index.js` as the extension tests path. These checks use real VS Code response constructors with injected synthetic credentials and HTTP responses. They cover parallel calls, credential routing, and failure paths without accessing live accounts. Live chat and account checks remain separate.

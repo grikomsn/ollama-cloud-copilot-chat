@@ -25,7 +25,7 @@ test("binds Ollama web search to the selected model credential", () => {
   );
   assert.throws(
     () => bound.routeToolCall("ollama-cloud_web-search__capability_b", { query: "news" }),
-    /unbound web-search tool call/,
+    /not advertised/,
   );
   assert.deepEqual(bound.bindMessages([
     {
@@ -50,4 +50,14 @@ test("binds Ollama web search to the selected model credential", () => {
     },
     { role: "tool", content: "result", tool_name: "ollama-cloud_web-search__capability_a" },
   ]);
+});
+
+
+test("Harmony name repair preserves the request-bound web-search capability", () => {
+  const bound = bindCredentialToTools([{ type: "function", function: { name: "ollama-cloud_web-search", parameters: { type: "object" } } }], "current-capability", true);
+  const name = bound.tools[0].function.name;
+  assert.deepEqual(bound.routeToolCall(`${name}<|channel|>commentary`, { query: "synthetic" }), {
+    name: "ollama-cloud_web-search", input: { query: "synthetic", credential_capability: "current-capability" },
+  });
+  assert.throws(() => bound.routeToolCall("ollama-cloud_web-search__other<|channel|>commentary", {}), /not advertised/);
 });

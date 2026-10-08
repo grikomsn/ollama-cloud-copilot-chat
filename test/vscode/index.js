@@ -8,30 +8,29 @@ async function run() {
   assert.ok(extension, "the Ollama Cloud extension is installed in the test host");
 
   const api = await extension.activate();
-  assert.equal(typeof api?.smokeTestWithApiKey, "function");
+  assert.equal(typeof api?.smokeTestNativeEntry, "function");
 
-  const result = await api.smokeTestWithApiKey(process.env.OLLAMA_API_KEY);
+  const result = await api.smokeTestNativeEntry("native-test", process.env.OLLAMA_API_KEY);
   assert.ok(result.modelCount >= 1, "the live cloud catalog contains models");
   assert.ok(result.model, "the smoke test selected a model");
   assert.ok(
     result.text.trim().length > 0,
     "live inference returned a non-empty model response",
   );
-  assert.equal(
-    typeof result.sessionUsage,
-    "number",
-    "the authenticated usage endpoint returned session usage",
-  );
-  assert.equal(
-    typeof result.weeklyUsage,
-    "number",
-    "the authenticated usage endpoint returned weekly usage",
-  );
-
-  const registered = await vscode.lm.selectChatModels({
-    vendor: "ollama-cloud",
-  });
-  assert.ok(registered.length >= 1, "VS Code can select registered Ollama Cloud models");
+  assert.ok(result.accountActivityAvailable || typeof result.sessionUsage === "number" || typeof result.weeklyUsage === "number",
+    "the authenticated usage endpoint returned request activity or quota windows");
+  const cancel = new vscode.CancellationTokenSource();
+  const information = await api.provider.provideLanguageModelChatInformation({
+    silent: true, configuration: { entryId: "native-test", apiKey: process.env.OLLAMA_API_KEY },
+  }, cancel.token);
+  const registered = information.map((model) => ({ ...model, id: model.rawModelId,
+    async sendRequest(messages, options, token) {
+      const parts = [];
+      await api.provider.provideLanguageModelChatResponse(model, messages, { requestInitiator: "native-entry-test", ...options }, { report: (part) => parts.push(part) }, token);
+      return { stream: (async function* () { yield* parts; })() };
+    },
+  }));
+  assert.ok(registered.length >= 1, "the native provider entry exposes models in the extension host");
   const inferenceModel = registered.find((model) => model.id === result.model)
     ?? registered[0];
   const response = await inferenceModel.sendRequest(
@@ -133,10 +132,8 @@ async function run() {
     registeredModelCount: registered.length,
     toolCallCount: toolCalls.length,
     followUpCharacters: followUpText.length,
-    usageWindows: {
-      session: result.sessionUsage,
-      weekly: result.weeklyUsage,
-    },
+    accountActivityAvailable: result.accountActivityAvailable,
+    quotaWindowsAvailable: typeof result.sessionUsage === "number" || typeof result.weeklyUsage === "number",
   }));
 }
 

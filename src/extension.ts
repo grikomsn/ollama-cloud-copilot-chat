@@ -1,24 +1,24 @@
 import * as vscode from "vscode";
 import { registerInlineCompletions } from "./autocomplete";
-import { OllamaCloudAuth } from "./auth/auth";
-import { messageOf } from "./errors";
+import { NativeEntries } from "./auth/auth";
 import { OllamaCloudProvider } from "./provider";
 import { OLLAMA_WEB_SEARCH_TOOL_NAME, OllamaWebSearchTool } from "./tools/registered/web-search";
 import { type OllamaUsageSnapshot } from "./usage/domain";
 import { renderUsageStatus, updateUsageStatusVisibility } from "./usage/presentation";
 import { registerCommands } from "./commands/commands";
-const LEGACY_USAGE_STATE_KEY = "ollamaCloudCopilot.usageSnapshot.v1";
 const USAGE_STATE_KEY = "ollamaCloudCopilot.usageSnapshots.v2";
 
 export interface OllamaCloudExtensionApi {
-  smokeTestWithApiKey(
-    apiKey: string,
+  readonly provider: OllamaCloudProvider;
+  smokeTestNativeEntry(
+    entryId: string, apiKey: string,
   ): Promise<{
     modelCount: number;
     model: string;
     text: string;
     sessionUsage?: number;
     weeklyUsage?: number;
+    accountActivityAvailable: boolean;
   }>;
 }
 
@@ -26,12 +26,12 @@ export function activate(
   context: vscode.ExtensionContext,
 ): OllamaCloudExtensionApi | undefined {
   const output = vscode.window.createOutputChannel("Ollama Cloud");
-  const auth = new OllamaCloudAuth(context.secrets);
+  const entries = new NativeEntries();
   const userAgent = `ollama-cloud-copilot-chat/${context.extension.packageJSON.version} VSCode/${vscode.version}`;
   const storedUsage = context.globalState.get<Readonly<Record<string, OllamaUsageSnapshot>>>(USAGE_STATE_KEY)
-    ?? { legacy: context.globalState.get<OllamaUsageSnapshot>(LEGACY_USAGE_STATE_KEY) ?? {} };
+    ?? {};
   const provider = new OllamaCloudProvider(
-    auth,
+    entries,
     context.globalState,
     output,
     userAgent,
@@ -66,12 +66,9 @@ export function activate(
       if (credentialRef === provider.getActiveCredentialRef()) renderUsageStatus(usageStatus, usage);
       void context.globalState.update(USAGE_STATE_KEY, provider.getUsageSnapshots());
     }),
-    context.secrets.onDidChange((event) => {
-      if (event.key === "ollamaCloudCopilot.apiKey") provider.fireDidChange();
-    }),
-    ...registerCommands(auth, provider, output),
+    ...registerCommands(provider, output),
     registerInlineCompletions(context, {
-      resolveApiKey: () => auth.getApiKey(),
+      resolveApiKey: async () => provider.getInlineApiKey(vscode.workspace.getConfiguration("ollamaCloudCopilot").get("inlineSuggestionsEntry", "")),
       output,
       userAgent,
     }),
@@ -80,24 +77,11 @@ export function activate(
   output.appendLine(
     `[activate] Ollama Cloud for Copilot Chat ${context.extension.packageJSON.version} on VS Code ${vscode.version}`,
   );
-  void auth.hasApiKey().then((configured) => {
-    if (!configured) return;
-    void provider.refreshModels().catch((error) => {
-      output.appendLine(`[models] initial refresh failed: ${messageOf(error)}`);
-    });
-    void provider.refreshUsage().catch((error) => {
-      output.appendLine(`[usage] initial refresh failed: ${messageOf(error)}`);
-    });
-  });
 
   return context.extensionMode !== vscode.ExtensionMode.Production
     ? {
-        smokeTestWithApiKey: async (apiKey: string) => {
-          const result = await provider.smokeTestWithApiKey(apiKey);
-          await auth.storeApiKey(apiKey);
-          provider.fireDidChange();
-          return result;
-        },
+        provider,
+        smokeTestNativeEntry: (entryId: string, apiKey: string) => provider.smokeTestNativeEntry(entryId, apiKey),
       }
     : undefined;
 }

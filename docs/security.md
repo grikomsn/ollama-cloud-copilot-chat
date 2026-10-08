@@ -8,9 +8,11 @@ extension receives the resolved key only while discovering or invoking that
 entry and keeps only a short SHA-256-derived reference in model metadata,
 catalog-cache keys, and usage state.
 
-The legacy configuration command stores one migration or smoke-test key under
-`ollamaCloudCopilot.apiKey` in VS Code Secret Storage. It removes that value
-only after explicit user confirmation.
+The extension keeps provisioned keys in memory and never copies them into a
+second secret store. Selection IDs and discovery history contain no keys.
+Rotation revokes stale model handles; missing explicit feature selections never
+fall back to another entry. Request capabilities remain bound to the originating
+credential and expire after ten minutes.
 
 The runtime does not read `.env`, workspace settings, or process environment
 variables for credentials.
@@ -24,7 +26,7 @@ cookies or scrape the account page.
 
 When `ollamaCloudCopilot.inlineSuggestions` is enabled, each suggestion sends
 a bounded window of the current document (a fixed number of lines before the
-cursor and a bounded suffix after it) plus the stored API key to the same
+cursor and a bounded suffix after it) plus the explicitly selected native entry's API key to the same
 `/api/chat` endpoint. Upstream error bodies are never surfaced or logged
 because they can echo prompt context, and suggestion text flows only into the
 editor's ghost text. The feature is disabled by default.
@@ -47,3 +49,5 @@ falls back to a bundled snapshot. Malformed stream lines fail the request rather
 than turning a truncated response into apparent success. Tool calls are emitted to Copilot as structured requests;
 the extension does not execute tools itself. Malformed usage responses preserve
 the last successful account snapshot and record a secret-safe refresh error.
+
+GPT-OSS Harmony channel suffixes in tool names are decoded only when the resulting name was advertised for that request. Unknown names are rejected, and web-search aliases still resolve only the request's own capability.
