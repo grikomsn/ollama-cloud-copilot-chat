@@ -1,5 +1,5 @@
 ---
-"ollama-cloud-copilot-chat": minor
+"ollama-cloud-copilot-chat": major
 ---
 
 Use native model-provider entries as the only API-key source. Require a stable entryId, preserve model selections across key rotation, isolate credential generations, and add explicit entry selection for management and inline suggestions. Keep minimal observation history and support forgetting in-memory entry bindings.
