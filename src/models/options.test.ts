@@ -28,6 +28,7 @@ const EXPECTED_PROFILES = new Map<string, readonly string[]>([
   ["kimi-k2.7-code", ["off", "on"]],
   ["kimi-k3", ["off", "low", "high", "max"]],
   ["minimax-m3", ["default", "low", "medium", "high", "max"]],
+  ["mistral-large-4", ["off", "on"]],
   ["nemotron-3-nano:30b", ["off", "on"]],
   ["nemotron-3-super", ["off", "on"]],
   ["nemotron-3-ultra", ["off", "on"]],
@@ -129,6 +130,17 @@ test("model-managed, unknown, and non-thinking models expose no control", () => 
   assert.equal(resolveThinkValue(model("minimax-m2.7", "minimax"), {}), undefined);
   assert.equal(buildThinkingSchema(model("future-thinking", "future")), undefined);
   assert.equal(buildThinkingSchema(model("mistral-large-3:675b", "mistral", false)), undefined);
+});
+
+test("Mistral Large 4 maps Off and On to native booleans", () => {
+  // Live-verified 2026-10-09: mistral-large-4 advertises thinking in
+  // /api/show and accepts think low/true/false natively; the older
+  // mistral-large-3:675b has no thinking capability and stays unpicked.
+  const candidate = model("mistral-large-4", "mistral");
+  assert.deepEqual(buildThinkingSchema(candidate)?.properties.reasoningEffort.enum, ["off", "on"]);
+  assert.equal(resolveThinkValue(candidate, { reasoningEffort: "off" }), false);
+  assert.equal(resolveThinkValue(candidate, { reasoningEffort: "on" }), true);
+  assert.equal(resolveThinkValue(candidate, { reasoningEffort: "low" }), true);
 });
 
 test("offers context tiers below the registered input limit", () => {
