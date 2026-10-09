@@ -64,6 +64,7 @@ function thinkingProfile(id: string): ThinkingProfile | undefined {
   if (family === "glm-5.2") return GLM_52_PROFILE;
   if (family === "kimi-k3") return KIMI_K3_PROFILE;
   if (family === "minimax-m3") return MINIMAX_M3_PROFILE;
+  if (family === "mistral-large-4") return BOOLEAN_PROFILE;
   if (
     family === "gemma4" || family === "kimi-k2.6" || family === "kimi-k2.7-code"
     || family === "nemotron-3-nano" || family === "nemotron-3-super" || family === "nemotron-3-ultra"
@@ -84,6 +85,7 @@ const THINKING_PROFILES = new Map<string, ThinkingProfile>([
   ["kimi-k2.7-code", BOOLEAN_PROFILE],
   ["kimi-k3", KIMI_K3_PROFILE],
   ["minimax-m3", MINIMAX_M3_PROFILE],
+  ["mistral-large-4", BOOLEAN_PROFILE],
   ["nemotron-3-nano:30b", BOOLEAN_PROFILE],
   ["nemotron-3-super", BOOLEAN_PROFILE],
   ["nemotron-3-ultra", BOOLEAN_PROFILE],
