@@ -9,9 +9,11 @@ entry and keeps only a short SHA-256-derived reference in model metadata,
 catalog-cache keys, and usage state.
 
 The extension keeps provisioned keys in memory and never copies them into a
-second secret store. Selection IDs, discovery history, and persisted forgotten-entry blocks contain no keys. Forgotten-entry blocks contain only entry IDs and survive restarts; discovery cannot clear them. Only the explicit Restore Native Entry action allows provisioning again.
-Rotation revokes stale model handles; missing explicit feature selections never
-fall back to another entry. Request capabilities remain bound to the originating entry, credential, and opaque generation and expire after ten minutes. Forget and key rotation revoke the generation, so capabilities and stale model handles cannot revive when the same key returns. Entries sharing a key keep separate generation bindings.
+second secret store. Entry group names are display labels only; scopes use a
+one-way credential fingerprint of the key. The active (most recently
+provisioned) key serves management commands and inline suggestions. Request
+capabilities remain bound to the originating credential fingerprint and expire
+after ten minutes. Entries sharing a key share that credential scope.
 
 The runtime does not read `.env`, workspace settings, or process environment
 variables for credentials.
@@ -25,7 +27,7 @@ cookies or scrape the account page.
 
 When `ollamaCloudCopilot.inlineSuggestions` is enabled, each suggestion sends
 a bounded window of the current document (a fixed number of lines before the
-cursor and a bounded suffix after it) plus the explicitly selected native entry's API key to the same
+cursor and a bounded suffix after it) plus the active key to the same
 `/api/chat` endpoint. Upstream error bodies are never surfaced or logged
 because they can echo prompt context, and suggestion text flows only into the
 editor's ghost text. The feature is disabled by default.

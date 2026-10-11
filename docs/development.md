@@ -28,7 +28,7 @@ loads authenticated request activity or quota windows, and checks native respons
 
 1. Open this repository in VS Code.
 2. Press F5 and choose **Run Extension**.
-3. In the new window, open **Manage Language Models** and add an Ollama Cloud entry with an `entryId` and secret API key.
+3. In the new window, open **Manage Language Models** and add an Ollama Cloud entry with a secret API key.
 4. Run **Ollama Cloud: Test Inference**.
 5. Open Copilot Chat and confirm the Ollama Cloud model group appears.
 6. Check a vision model accepts an image.
