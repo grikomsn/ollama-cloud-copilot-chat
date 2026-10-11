@@ -74,22 +74,6 @@
       {
         "command": "ollamaCloudCopilot.diagnostics",
         "title": "Ollama Cloud: Show Diagnostics"
-      },
-      {
-        "command": "ollamaCloudCopilot.selectEntry",
-        "title": "Ollama Cloud: Select Entry for Usage and Management"
-      },
-      {
-        "command": "ollamaCloudCopilot.selectInlineEntry",
-        "title": "Ollama Cloud: Select Inline Suggestions Entry"
-      },
-      {
-        "command": "ollamaCloudCopilot.forgetEntry",
-        "title": "Ollama Cloud: Forget Native Entry"
-      },
-      {
-        "command": "ollamaCloudCopilot.restoreEntry",
-        "title": "Ollama Cloud: Restore Native Entry"
       }
     ],
     "configuration": {
@@ -179,16 +163,6 @@
           "type": "boolean",
           "default": false,
           "description": "Log request, discovery, and usage metadata. API keys, prompts, responses, and tool data are never logged."
-        },
-        "ollamaCloudCopilot.managementEntry": {
-          "type": "string",
-          "default": "",
-          "description": "Native entry ID selected for subscription usage and management commands. Provision the entry in Manage Language Models after a restart."
-        },
-        "ollamaCloudCopilot.inlineSuggestionsEntry": {
-          "type": "string",
-          "default": "",
-          "description": "Native entry ID explicitly selected for inline suggestions. An unavailable entry never falls back to another account."
         }
       }
     },
@@ -199,21 +173,14 @@
         "configuration": {
           "type": "object",
           "required": [
-            "apiKey",
-            "entryId"
+            "apiKey"
           ],
           "properties": {
             "apiKey": {
               "type": "string",
               "title": "Ollama Cloud API Key",
-              "description": "API key for this Ollama Cloud model-provider entry. VS Code stores configured secrets securely.",
+              "description": "API key for this Ollama Cloud provider entry. The entry's group name is its user-facing label.",
               "secret": true
-            },
-            "entryId": {
-              "type": "string",
-              "title": "Stable entry ID",
-              "description": "Unique lowercase ID for model selections and feature routing. Keep this ID when rotating the API key.",
-              "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
             }
           }
         }

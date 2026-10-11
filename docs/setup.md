@@ -13,8 +13,8 @@ The Ollama application and CLI are not required. A paid Copilot plan is not requ
 
 1. Install the extension from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=grikomsn.ollama-cloud-copilot-chat).
 2. Open **Manage Language Models**, choose **Add Models**, and select **Ollama Cloud**.
-3. Name the provider entry, set a unique lowercase **Stable entry ID** (`entryId`, for example `work`), and paste an Ollama API key. VS Code stores the key as a secret.
-4. Repeat those steps to add another account or API key. Model selections use the stable entry ID. Catalog, subscription usage, and token calibration use credential fingerprints; entries sharing a key share that account scope.
+3. Name the provider entry (its **group name** is the label, for example `work`) and paste an Ollama API key. VS Code stores the key as a secret.
+4. Repeat those steps to add another account or API key. Model selections use raw model IDs (the host namespaces them per group). Catalog, subscription usage, and token calibration use credential fingerprints; entries sharing a key share that account scope.
 5. Enable the models you want and select one in Copilot Chat.
 
 ## Web search tool
@@ -25,19 +25,13 @@ web context. The tool uses an opaque, expiring capability bound to the Ollama
 Cloud request that issued the tool call and returns titles, URLs, and snippets from Ollama Cloud's web search
 endpoint. Ollama limits each request to 10 results; the default is 5.
 
-VS Code owns all native provider-entry keys. The extension retains provisioned keys only in memory and does not read command-managed keys or `.env`. Add `entryId` to existing entries and reselect your models after upgrading. Keep that ID when rotating a key; stale model handles fail rather than switching credentials. Use distinct IDs even when display names match.
-
-Select the entry for management with **Ollama Cloud: Select Entry for Usage and Management**, and select the inline account separately with **Ollama Cloud: Select Inline Suggestions Entry**. Both choices persist as IDs, with no fallback to the first discovered key. After a restart, open **Manage Language Models** to provision entries before using these features. Removed native entries can remain in discovery history and memory until reload because VS Code provides no entry-removal callback. **Ollama Cloud: Forget Native Entry** clears the extension's history and in-memory binding and persists an alias-only block. Automatic discovery cannot restore that entry, including after a restart. Use **Ollama Cloud: Restore Native Entry** deliberately to allow VS Code to provision its configured key again. Forget does not delete the native entry or its VS Code-owned key; remove it in Manage Language Models if you also want that configuration gone. Old model handles and tool capabilities remain invalid after restoration or rotation back to the same key.
+VS Code owns all native provider-entry keys. The extension retains provisioned keys only in memory and does not read command-managed keys or `.env`. Recreate old entries with the new single-field flow after upgrading. Management, inline suggestions, and diagnostics use the active key (the most recently provisioned one in Manage Language Models). Deleting an entry removes its handles; its cached catalog ages out on its own.
 
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
-| **Ollama Cloud: Manage Connection** | Select entries, test, refresh, inspect usage or logs, or open native entry management |
-| **Ollama Cloud: Select Entry for Usage and Management** | Choose the provisioned entry used by management commands |
-| **Ollama Cloud: Select Inline Suggestions Entry** | Explicitly bind inline suggestions to a provisioned entry |
-| **Ollama Cloud: Forget Native Entry** | Block an entry and clear its in-memory binding until explicit restoration |
-| **Ollama Cloud: Restore Native Entry** | Remove the alias-only block and allow native provisioning again |
+| **Ollama Cloud: Manage Connection** | Test, refresh, inspect usage or logs, or open native entry management |
 | **Ollama Cloud: Refresh Models** | Fetch the current hosted catalog and model metadata |
 | **Ollama Cloud: Test Inference** | Send a small live generation request |
 | **Ollama Cloud: Show Subscription Usage** | Refresh and inspect account utilization and local request tokens |
@@ -49,8 +43,6 @@ Select the entry for management with **Ollama Cloud: Select Entry for Usage and 
 
 | Setting | Default | Purpose |
 | --- | ---: | --- |
-| `ollamaCloudCopilot.managementEntry` | empty | Entry ID for management commands |
-| `ollamaCloudCopilot.inlineSuggestionsEntry` | empty | Entry ID for inline suggestions |
 | `ollamaCloudCopilot.maxOutputTokens` | `65536` | Requested generation ceiling, capped by the selected model and remaining context |
 | `ollamaCloudCopilot.requestTimeoutSeconds` | `600` | Maximum total request duration in seconds |
 | `ollamaCloudCopilot.streamIdleTimeoutSeconds` | `120` | Maximum seconds without streamed response data |

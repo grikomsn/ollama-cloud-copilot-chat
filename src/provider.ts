@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { randomUUID } from "node:crypto";
-import { nativeEntryId, NativeEntries, type NativeEntryBinding } from "./auth/auth";
+import { apiKeyFromConfiguration, credentialReference, NativeEntries } from "./auth/auth";
 import {
   CATALOG_CACHE_KEY,
   ModelCatalog,
@@ -22,13 +22,11 @@ import {
 import {
   createResponseStreamState,
   validateResponseCompletion,
-  type ResponseStreamState,
 } from "./provider/response-state";
 import {
   createResponseUsageState,
   resolveResponseUsage,
   type ResolvedResponseUsage,
-  type ResponseUsageState,
 } from "./provider/response-usage";
 import { estimateInputTokens } from "./provider/token-estimate";
 import { OLLAMA_ENDPOINTS, ollamaHeaders } from "./transport/protocol";
@@ -37,7 +35,6 @@ import { bindCredentialToTools } from "./tools/credential-binding";
 import { CredentialCapabilities } from "./tools/credential-capabilities";
 import { buildChatRequestPlan } from "./provider/request";
 import { readOllamaNdjsonStream } from "./transport/ndjson-stream";
-import { observeEntry, observedEntries } from "./provider-journal";
 import { closeThinking, reportResponseEvent } from "./provider/response";
 
 const USAGE_MIME_TYPE = "usage";
@@ -46,8 +43,6 @@ export interface OllamaCloudModelInformation extends vscode.LanguageModelChatInf
   readonly rawModelId: string;
   readonly contextLength: number;
   readonly credentialRef: string;
-  readonly entryId: string;
-  readonly entryGeneration: string;
 }
 
 export class OllamaCloudProvider
@@ -58,7 +53,6 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
   private readonly charsPerToken = new Map<string, number>();
   private readonly usageByCredential = new Map<string, OllamaUsageSnapshot>();
   private readonly credentialCapabilities = new CredentialCapabilities();
-  private activeCredentialRef = "";
   readonly onDidChangeLanguageModelChatInformation = this.changeEmitter.event;
   readonly onDidChangeUsage = this.usageEmitter.event;
 
@@ -81,34 +75,24 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     this.changeEmitter.fire();
   }
 
-  getEntries(): Array<{ entryId: string; credentialRef: string }> { return this.entries.list(); }
-
-  selectEntry(entryId: string): void {
-    if (this.entries.isForgotten(entryId)) throw new Error("This native entry is forgotten. Run Ollama Cloud: Restore Native Entry first.");
-    const entry = this.entries.list().find((item) => item.entryId === entryId);
-    if (!entry) throw new Error("This entry has not been provisioned. Open Manage Language Models and refresh it first.");
-    this.activeCredentialRef = entry.credentialRef;
-    this.usageEmitter.fire({ credentialRef: entry.credentialRef, usage: this.getUsageSnapshot() });
+  getFeatureApiKey(): string | undefined {
+    return this.entries.activeApiKey();
   }
 
-  getInlineApiKey(entryId: string): string | undefined {
-    if (!entryId) return undefined;
-    return this.entries.keyForEntry(entryId);
+  private pruneCatalogs(): void {
+    for (const credentialRef of this.catalogs.keys()) {
+      if (this.entries.has(credentialRef)) continue;
+      this.catalogs.delete(credentialRef);
+    }
   }
 
-  getObservedEntries(): ReturnType<typeof observedEntries> { return observedEntries(this.cache); }
-
-  async forgetEntry(entryId: string): Promise<void> {
-    await this.entries.forget(entryId);
-    await observeEntry(this.cache, entryId, undefined);
-    this.changeEmitter.fire();
+  private get activeCredentialRef(): string {
+    return credentialReference(this.entries.activeApiKey() ?? "");
   }
 
-  getForgottenEntries(): string[] { return this.entries.forgottenEntries(); }
-
-  async restoreEntry(entryId: string): Promise<void> {
-    await this.entries.restore(entryId);
-    this.changeEmitter.fire();
+  /** Resets locally tracked usage for the active credential. */
+  clearUsage(): void {
+    this.setUsage(this.activeCredentialRef, {});
   }
 
   getUsageSnapshot(): OllamaUsageSnapshot {
@@ -125,16 +109,12 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
 
   async getApiKeyForCapability(capability: string): Promise<string | undefined> {
     const binding = this.credentialCapabilities.resolve(capability);
-    if (!binding || !this.entries.matches(binding.entryId, binding.credentialRef, binding.generation)) return undefined;
-    return this.entries.keyForEntry(binding.entryId);
-  }
-
-  clearUsage(): void {
-    this.setUsage(this.activeCredentialRef, {});
+    if (!binding || !this.entries.has(binding)) return undefined;
+    return this.entries.keyForCredential(binding);
   }
 
   async refreshUsage(credentialRef = this.activeCredentialRef): Promise<OllamaUsageSnapshot> {
-    const apiKey = await this.requireApiKey(false, credentialRef);
+    const apiKey = this.requireApiKey(credentialRef);
     try {
       const response = await fetch(OLLAMA_ENDPOINTS.usage, {
         headers: ollamaHeaders(apiKey, "application/json", this.userAgent),
@@ -155,8 +135,9 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
   }
 
   async refreshModels(): Promise<readonly CloudModel[]> {
-    const apiKey = await this.requireApiKey(false, this.activeCredentialRef);
-    const models = await this.catalogFor(this.activeCredentialRef).refresh(apiKey);
+    const credentialRef = this.activeCredentialRef;
+    const apiKey = this.requireApiKey(credentialRef);
+    const models = await this.catalogFor(credentialRef).refresh(apiKey);
     this.changeEmitter.fire();
     return models;
   }
@@ -165,13 +146,19 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     options: vscode.PrepareLanguageModelChatModelOptions,
     token: vscode.CancellationToken,
   ): Promise<OllamaCloudModelInformation[]> {
-    if (token.isCancellationRequested) return [];
-    if (!options.configuration) return [];
-    if (this.entries.isForgotten(nativeEntryId(options.configuration))) return [];
-    const binding = this.entries.register(options.configuration);
-    const { entryId, credentialRef, generation } = binding;
-    const apiKey = await this.requireApiKey(false, credentialRef);
-    if (this.configuration.get("managementEntry", "") === entryId) this.selectEntry(entryId);
+    if (token.isCancellationRequested || !options.configuration) return [];
+    let apiKey: string | undefined;
+    try {
+      apiKey = apiKeyFromConfiguration(options.configuration);
+      if (!apiKey) throw new Error("Set the Ollama Cloud API key in Manage Language Models");
+    } catch (error) {
+      const message = messageOf(error);
+      this.output.appendLine(`[models] ${message}`);
+      if (!options.silent) void vscode.window.showErrorMessage(message);
+      return [];
+    }
+    const credentialRef = this.entries.register(apiKey);
+    this.pruneCatalogs();
     const catalog = this.catalogFor(credentialRef);
     const maxAge = Math.max(1, this.configuration.get("catalogCacheMinutes", 30)) * 60_000;
     if (!catalog.isFresh(maxAge)) {
@@ -188,10 +175,8 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
         listener.dispose();
       }
     }
-    if (token.isCancellationRequested || !this.entries.matches(entryId, credentialRef, generation)) return [];
-    await observeEntry(this.cache, entryId, catalog.list().length);
-    if (!this.entries.matches(entryId, credentialRef, generation)) return [];
-    return catalog.list().map((model) => this.toModelInformation(model, binding));
+    if (token.isCancellationRequested || !this.entries.has(credentialRef)) return [];
+    return catalog.list().map((model) => this.toModelInformation(model, credentialRef));
   }
 
   async provideLanguageModelChatResponse(
@@ -201,19 +186,16 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     progress: vscode.Progress<vscode.LanguageModelResponsePart2>,
     token: vscode.CancellationToken,
   ): Promise<void> {
-    if (!this.entries.matches(information.entryId, information.credentialRef, information.entryGeneration)) {
-      throw new Error("This model belongs to a replaced or removed entry. Refresh it in Manage Language Models.");
-    }
-    this.activeCredentialRef = information.credentialRef;
-    const apiKey = await this.requireApiKey(false, information.credentialRef);
-    if (!this.entries.matches(information.entryId, information.credentialRef, information.entryGeneration)) {
-      throw new Error("This model belongs to a replaced or removed entry. Refresh it in Manage Language Models.");
+    if (token.isCancellationRequested) return;
+    const apiKey = this.entries.keyForCredential(information.credentialRef);
+    if (!apiKey) {
+      throw new Error("This entry's API key was replaced or removed. Reselect its model in Manage Language Models.");
     }
     const model = this.catalogFor(information.credentialRef).get(information.rawModelId);
     if (!model) throw new Error(`Unknown Ollama Cloud model: ${information.rawModelId}`);
     const boundTools = bindCredentialToTools(
       convertTools(options.tools),
-      this.credentialCapabilities.issue({ entryId: information.entryId, credentialRef: information.credentialRef, generation: information.entryGeneration }),
+      this.credentialCapabilities.issue(information.credentialRef),
       model.family === "gpt-oss",
     );
     const tools = boundTools.tools;
@@ -337,18 +319,18 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
   }
 
   async testConnection(): Promise<{ model: string; text: string }> {
-    const apiKey = await this.requireApiKey(false);
+    const apiKey = this.getFeatureApiKey();
+    if (!apiKey) throw new Error("Provision an Ollama Cloud entry in Manage Language Models first.");
     return this.testConnectionWithApiKey(apiKey);
   }
 
-  async smokeTestNativeEntry(entryId: string, apiKey: string): Promise<{
+  async smokeTestEntry(apiKey: string): Promise<{
     modelCount: number; model: string; text: string; sessionUsage?: number; weeklyUsage?: number; accountActivityAvailable: boolean;
   }> {
-    const entry = this.entries.register({ entryId, apiKey });
-    this.selectEntry(entryId);
-    const models = await this.catalogFor(entry.credentialRef).refresh(apiKey.trim());
-    const result = await this.testConnection();
-    const usage = await this.refreshUsage();
+    const credentialRef = this.entries.register(apiKey.trim());
+    const models = await this.catalogFor(credentialRef).refresh(apiKey.trim());
+    const result = await this.testConnectionWithApiKey(apiKey.trim());
+    const usage = await this.refreshUsage(credentialRef);
     return { modelCount: models.length, ...result, sessionUsage: usage.session?.usedRatio, weeklyUsage: usage.weekly?.usedRatio, accountActivityAvailable: usage.requestActivity !== undefined };
   }
 
@@ -377,8 +359,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     return { model: model.id, text };
   }
 
-  private toModelInformation(model: CloudModel, binding: NativeEntryBinding): OllamaCloudModelInformation {
-    const { entryId, credentialRef, generation } = binding;
+  private toModelInformation(model: CloudModel, credentialRef: string): OllamaCloudModelInformation {
     const modalities = model.capabilities.imageInput ? "text + images" : "text";
     const thinkingSchema = buildThinkingSchema(model);
     const maxOutputTokens = Math.min(
@@ -394,15 +375,13 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     const retirement = model.retirementDate ? ` · retires ${model.retirementDate}` : "";
     const pricing = modelPricingFields(ollamaModelCost(model.id));
     return {
-      id: `${entryId}::${model.id}`,
+      id: model.id,
       rawModelId: model.id,
       credentialRef,
-      entryId,
-      entryGeneration: generation,
       name: model.name,
       family: model.family,
       version: model.version,
-      detail: `Ollama Cloud · ${entryId}`,
+      detail: "Ollama Cloud",
       tooltip: [
         `${model.id} · ${formatTokens(model.contextLength)} context`,
         `${modalities} · tools ${model.capabilities.toolCalling ? "supported" : "unavailable"} · ${thinking}`,
@@ -412,7 +391,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
       maxOutputTokens,
       isUserSelectable: true,
       isBYOK: true,
-      requiresAuthorization: { label: `Ollama Cloud (${entryId})` },
+      requiresAuthorization: { label: "Ollama Cloud" },
       ...(configurationSchema ? { configurationSchema } : {}),
       ...(pricing ?? {}),
       capabilities: {
@@ -462,9 +441,9 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
     ));
   }
 
-  private async requireApiKey(_prompt: boolean, credentialRef = this.activeCredentialRef): Promise<string> {
+  private requireApiKey(credentialRef = this.activeCredentialRef): string {
     const apiKey = this.entries.keyForCredential(credentialRef);
-    if (!apiKey) throw new Error("The API key for this entry is unavailable. Open Manage Language Models, provision it, then select it for management.");
+    if (!apiKey) throw new Error("Provision an Ollama Cloud entry in Manage Language Models first.");
     return apiKey;
   }
 

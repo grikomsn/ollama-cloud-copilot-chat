@@ -26,19 +26,17 @@ async function run() {
   try {
     const values = new Map();
     const cache = { get: (key) => values.get(key), update: async (key, value) => { values.set(key, value); } };
-    const entries = new NativeEntries(cache);
+    const entries = new NativeEntries();
     const provider = new OllamaCloudProvider(entries, cache, { appendLine() {} }, "native-test");
-    const prepare = async (entryId, apiKey) => (await provider.provideLanguageModelChatInformation({
-      configuration: { entryId, apiKey, name: "Same name" }, silent: true,
-    }, source.token))[0];
-    const work = await prepare("work", "synthetic-work");
-    const personal = await prepare("personal", "synthetic-personal");
+    const prepare = async (apiKey) => (await provider.provideLanguageModelChatInformation({
+      configuration: { apiKey }, silent: true,
+    }, source.token));
+    const work = (await prepare("synthetic-work"))[0];
+    const personal = (await prepare("synthetic-personal"))[0];
     assert.notEqual(work.id, personal.id);
     assert.notEqual(work.credentialRef, personal.credentialRef);
-    assert.equal(provider.getInlineApiKey(""), undefined);
-    assert.equal(provider.getInlineApiKey("work"), "synthetic-work");
-    assert.equal(provider.getInlineApiKey("missing"), undefined);
-    const callsByEntry = [];
+    assert.equal(provider.getFeatureApiKey(), "synthetic-personal", "Active key follows the most recent provisioning");
+    const callsByKey = new Map();
     const options = { requestInitiator: "native-test", tools: [{ name: OLLAMA_WEB_SEARCH_TOOL_NAME, description: "Synthetic web probe", inputSchema: { type: "object" } }] };
     for (const [model, key] of [[work, "synthetic-work"], [personal, "synthetic-personal"]]) {
       const output = [];
@@ -49,87 +47,24 @@ async function run() {
       assert.equal(output[1].metadata.vscode_reasoning_done, true);
       assert.equal(sent.at(-1).token, `Bearer ${key}`);
       assert.equal(await provider.getApiKeyForCapability(calls[0].input.credential_capability), key);
-      callsByEntry.push(calls);
+      callsByKey.set(key, calls);
     }
-    assert.equal(await provider.getApiKeyForCapability(callsByEntry[0][0].input.credential_capability), "synthetic-work");
-    const history = [vscode.LanguageModelChatMessage.User("synthetic prompt"), vscode.LanguageModelChatMessage.Assistant(callsByEntry[0]),
-      vscode.LanguageModelChatMessage.User(callsByEntry[0].map((call) => new vscode.LanguageModelToolResultPart(call.callId, [new vscode.LanguageModelTextPart("synthetic result")])) )];
+    const history = [vscode.LanguageModelChatMessage.User("synthetic prompt"), vscode.LanguageModelChatMessage.Assistant(callsByKey.get("synthetic-work")),
+      vscode.LanguageModelChatMessage.User(callsByKey.get("synthetic-work").map((call) => new vscode.LanguageModelToolResultPart(call.callId, [new vscode.LanguageModelTextPart("synthetic result")])))];
     await provider.provideLanguageModelChatResponse(work, history, options, { report() {} }, source.token);
     assert.equal(sent.at(-1).body.messages.filter((message) => message.role === "tool").length, 3);
-    provider.selectEntry("personal");
-    await provider.refreshUsage();
+    await provider.refreshUsage(personal.credentialRef);
     assert.equal(provider.getUsageSnapshot().weekly.usedRatio, 0.2);
-    const rotated = await prepare("work", "synthetic-rotated");
-    assert.equal(work.id, rotated.id);
-    assert.notEqual(work.credentialRef, rotated.credentialRef);
-    await assert.rejects(provider.provideLanguageModelChatResponse(work, [], options, { report() {} }, source.token), /replaced or removed/);
-    assert.equal(await provider.getApiKeyForCapability(callsByEntry[0][0].input.credential_capability), undefined);
-    assert.equal(provider.getInlineApiKey("work"), "synthetic-rotated");
-    const returned = await prepare("work", "synthetic-work");
-    assert.equal(work.id, returned.id);
-    assert.equal(work.credentialRef, returned.credentialRef);
-    assert.notEqual(work.entryGeneration, returned.entryGeneration);
-    await assert.rejects(provider.provideLanguageModelChatResponse(work, [], options, { report() {} }, source.token), /replaced or removed/);
-    assert.equal(await provider.getApiKeyForCapability(callsByEntry[0][0].input.credential_capability), undefined);
-    const freshOutput = [];
-    await provider.provideLanguageModelChatResponse(returned, [], options, { report: (part) => freshOutput.push(part) }, source.token);
-    const freshCapability = freshOutput.find((part) => part instanceof vscode.LanguageModelToolCallPart).input.credential_capability;
-    const shared = await prepare("shared", "synthetic-work");
+    // Key-scoped credentials keep handles valid while their key stays provisioned.
+    const shared = (await prepare("synthetic-work"))[0];
+    assert.equal(shared.id, work.id);
+    assert.equal(shared.credentialRef, work.credentialRef);
     const sharedOutput = [];
     await provider.provideLanguageModelChatResponse(shared, [], options, { report: (part) => sharedOutput.push(part) }, source.token);
     const sharedCapability = sharedOutput.find((part) => part instanceof vscode.LanguageModelToolCallPart).input.credential_capability;
-    let rediscovery;
-    const changed = provider.onDidChangeLanguageModelChatInformation(() => { rediscovery = prepare("work", "synthetic-work"); });
-    await provider.forgetEntry("work");
-    assert.equal(await rediscovery, undefined);
-    assert.equal(provider.getInlineApiKey("work"), undefined);
-    assert.equal(provider.getInlineApiKey("personal"), "synthetic-personal");
-    assert.deepEqual(provider.getForgottenEntries(), ["work"]);
-    assert.equal(await provider.getApiKeyForCapability(freshCapability), undefined);
     assert.equal(await provider.getApiKeyForCapability(sharedCapability), "synthetic-work");
-    await assert.rejects(provider.provideLanguageModelChatResponse(returned, [], options, { report() {} }, source.token), /replaced or removed/);
-    const restartedEntries = new NativeEntries(cache);
-    const restarted = new OllamaCloudProvider(restartedEntries, cache, { appendLine() {} }, "native-test");
-    const restartPrepare = async () => (await restarted.provideLanguageModelChatInformation({ configuration: { entryId: "work", apiKey: "synthetic-work" }, silent: true }, source.token))[0];
-    assert.equal(await restartPrepare(), undefined);
-    assert.equal(restarted.getInlineApiKey("work"), undefined);
-    assert.deepEqual(restarted.getForgottenEntries(), ["work"]);
-    assert.deepEqual([...values].find(([key]) => key.includes("forgottenEntries"))[1], ["work"]);
-    await restarted.restoreEntry("work");
-    const restored = await restartPrepare();
-    assert.equal(restored.id, work.id);
-    assert.notEqual(restored.entryGeneration, returned.entryGeneration);
-    await assert.rejects(restarted.provideLanguageModelChatResponse(returned, [], options, { report() {} }, source.token), /replaced or removed/);
-    await restarted.provideLanguageModelChatResponse(restored, [], options, { report() {} }, source.token);
-    await provider.restoreEntry("work");
-    assert.ok(await rediscovery);
-    assert.equal(await provider.getApiKeyForCapability(freshCapability), undefined);
-    assert.equal(await provider.getApiKeyForCapability(sharedCapability), "synthetic-work");
-    assert.equal(Object.keys(provider.getObservedEntries()).length, 3);
-    changed.dispose();
-    let discoveryStarted;
-    let releaseDiscovery;
-    const started = new Promise((resolve) => { discoveryStarted = resolve; });
-    const gate = new Promise((resolve) => { releaseDiscovery = resolve; });
-    const normalFetch = globalThis.fetch;
-    globalThis.fetch = async (url, init) => {
-      if (String(url).endsWith("/tags") && new Headers(init.headers).get("Authorization") === "Bearer synthetic-slow") {
-        discoveryStarted();
-        await gate;
-      }
-      return normalFetch(url, init);
-    };
-    try {
-      const pendingDiscovery = prepare("slow", "synthetic-slow");
-      await started;
-      await provider.forgetEntry("slow");
-      releaseDiscovery();
-      assert.equal(await pendingDiscovery, undefined);
-      assert.equal(provider.getObservedEntries().slow, undefined);
-      assert.equal(provider.getInlineApiKey("slow"), undefined);
-    } finally { releaseDiscovery(); globalThis.fetch = normalFetch; }
-    assert.equal(new NativeEntries(cache).keyForEntry("personal"), undefined);
+    assert.equal(new NativeEntries().keyForCredential(work.credentialRef), undefined);
   } finally { globalThis.fetch = fetcher; source.dispose(); }
-  console.log(JSON.stringify({ provider: "ollama", nativeChecks: "parallel tools, reasoning closure, two entries, bound capabilities, follow-up, explicit inline selection, rotation back, shared keys, forget/rediscovery, persisted tombstones, deliberate restore, stale generations after restart, forget during discovery", passed: true }));
+  console.log(JSON.stringify({ provider: "ollama", nativeChecks: "parallel tools, reasoning closure, two entries, bound capabilities, follow-up, active-key selection, raw ids, key-scoped handles", passed: true }));
 }
 module.exports = { run };

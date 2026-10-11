@@ -8,9 +8,9 @@ async function run() {
   assert.ok(extension, "the Ollama Cloud extension is installed in the test host");
 
   const api = await extension.activate();
-  assert.equal(typeof api?.smokeTestNativeEntry, "function");
+  assert.equal(typeof api?.smokeTestEntry, "function");
 
-  const result = await api.smokeTestNativeEntry("native-test", process.env.OLLAMA_API_KEY);
+  const result = await api.smokeTestEntry(process.env.OLLAMA_API_KEY);
   assert.ok(result.modelCount >= 1, "the live cloud catalog contains models");
   assert.ok(result.model, "the smoke test selected a model");
   assert.ok(
@@ -21,7 +21,7 @@ async function run() {
     "the authenticated usage endpoint returned request activity or quota windows");
   const cancel = new vscode.CancellationTokenSource();
   const information = await api.provider.provideLanguageModelChatInformation({
-    silent: true, configuration: { entryId: "native-test", apiKey: process.env.OLLAMA_API_KEY },
+    silent: true, configuration: { apiKey: process.env.OLLAMA_API_KEY },
   }, cancel.token);
   const registered = information.map((model) => ({ ...model, id: model.rawModelId,
     async sendRequest(messages, options, token) {
