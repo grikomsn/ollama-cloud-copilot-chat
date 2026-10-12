@@ -3,9 +3,13 @@ import test from "node:test";
 import {
   formatUsageRows,
   formatUsageStatusBar,
+  formatUsageTooltip,
+  isBalanceResponse,
   mergeAccountUsage,
+  mergeBalanceUsage,
   recordRequestUsage,
   toUsagePayload,
+  type OllamaUsageSnapshot,
 } from "./domain";
 
 test("maps native Ollama counts to provider usage data", () => {
@@ -109,4 +113,86 @@ test("reports current request activity without inventing or retaining stale quot
   assert.equal(snapshot.requestActivity?.requestCount, 12);
   assert.equal(snapshot.tracked?.totalTokens, 15);
   assert.match(formatUsageRows(snapshot).find((row) => row.label === "Quota limits unavailable")?.description ?? "", /without quota windows/);
+});
+
+test("validates balance responses strictly", () => {
+  assert.equal(isBalanceResponse({
+    included: {
+      session: { remaining_percent: 92.5 },
+      balance_usd: 55.5,
+      allowance_usd: 60,
+      period: { until: "2026-11-01T00:00:00Z" },
+    },
+    purchased: { balance_usd: 10 },
+  }), true);
+  assert.equal(isBalanceResponse({ included: { monthly: { remaining_percent: 50 } } }), true);
+  assert.equal(isBalanceResponse({ purchased: { balance_usd: 5 } }), true);
+  assert.equal(isBalanceResponse({ included: { session: { remaining_percent: "high" } } }), false);
+  assert.equal(isBalanceResponse({ included: { balance_usd: 5 } }), false);
+  assert.equal(isBalanceResponse({ included: { period: { until: 5 } } }), false);
+  assert.equal(isBalanceResponse({ included: {} }), false);
+  assert.equal(isBalanceResponse({ included: "nope" }), false);
+  assert.equal(isBalanceResponse("nope"), false);
+});
+
+test("merges balance enrichment without clobbering account windows", () => {
+  const current = mergeAccountUsage({}, {
+    limits: {
+      session: { usage: 0.1, models: [{ name: "gpt-oss:20b", request_count: 3 }] },
+      weekly: { usage: 0.2, models: [] },
+    },
+  }, 100);
+  const merged = mergeBalanceUsage(current, {
+    included: {
+      session: { remaining_percent: 50 },
+      monthly: { remaining_percent: 75 },
+      balance_usd: 15,
+      allowance_usd: 60,
+      period: { until: "2026-11-01T00:00:00Z" },
+    },
+    purchased: { balance_usd: 12.5 },
+  }, 200);
+  assert.equal(merged.session?.models.length, 1);
+  assert.equal(merged.weekly?.usedRatio, 0.2);
+  assert.equal(merged.monthly?.usedRatio, 0.25);
+  assert.deepEqual(merged.plan, {
+    usedRatio: 0.75,
+    balanceUsd: 15,
+    allowanceUsd: 60,
+    renewsAt: "2026-11-01T00:00:00Z",
+  });
+  assert.equal(merged.purchasedUsd, 12.5);
+  assert.equal(merged.updatedAt, 200);
+  const rows = formatUsageRows(merged);
+  assert.match(rows.find((row) => row.label === "Included plan balance")?.description ?? "", /\$15\.00 of \$60\.00/);
+  assert.match(rows.find((row) => row.label === "Purchased credits")?.description ?? "", /\$12\.50/);
+  assert.match(formatUsageTooltip(merged), /renews: 2026-11-01/);
+});
+
+test("fills quota windows from balance when account usage has none", () => {
+  const current = mergeAccountUsage({}, {
+    from: "2026-10-01T00:00:00Z", until: "2026-10-31T00:00:00Z", totals: { request_count: 5 },
+  }, 100);
+  assert.equal(current.quotaUnavailable, true);
+  const merged = mergeBalanceUsage(current, {
+    included: {
+      session: { remaining_percent: 100 },
+      weekly: { remaining_percent: 40 },
+    },
+  }, 200);
+  assert.equal(merged.session?.usedRatio, 0);
+  assert.equal(merged.weekly?.usedRatio, 0.6);
+  assert.equal(merged.quotaUnavailable, true);
+  assert.equal(formatUsageStatusBar(merged), "$(pulse) Ollama 5h 0% · 7d 60%");
+});
+
+test("ignores invalid balance payloads and leaves the snapshot untouched", () => {
+  const current: OllamaUsageSnapshot = {
+    session: { usedRatio: 0.5, models: [] },
+    error: "keep me",
+    updatedAt: 1,
+  };
+  assert.equal(mergeBalanceUsage(current, "junk", 2), current);
+  assert.equal(mergeBalanceUsage(current, { included: { session: { remaining_percent: "x" } } }, 2), current);
+  assert.equal(mergeBalanceUsage(current, { included: { session: { remaining_percent: 10 } } }, 2).error, "keep me");
 });

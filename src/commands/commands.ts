@@ -172,6 +172,8 @@ function toUsageQuickPickItem(row: UsageDisplayRow): UsageQuickPickItem {
   const icons: Record<UsageDisplayRow["kind"], string> = {
     session: "$(watch)",
     weekly: "$(calendar)",
+    monthly: "$(calendar)",
+    plan: "$(credit-card)",
     activity: "$(credit-card)",
     tracked: "$(symbol-numeric)",
     request: "$(history)",
