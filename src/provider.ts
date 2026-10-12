@@ -15,10 +15,12 @@ import { trimHistoryToFit } from "./provider/history-trim";
 import { modelPricingFields, ollamaModelCost } from "./models/pricing";
 import {
   mergeAccountUsage,
+  mergeBalanceUsage,
   recordRequestUsage,
   toUsagePayload,
   type OllamaUsageSnapshot,
 } from "./usage/domain";
+import { shouldAutoRefreshUsage } from "./usage/throttle";
 import {
   createResponseStreamState,
   validateResponseCompletion,
@@ -52,6 +54,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
   private readonly catalogs = new Map<string, ModelCatalog>();
   private readonly charsPerToken = new Map<string, number>();
   private readonly usageByCredential = new Map<string, OllamaUsageSnapshot>();
+  private readonly lastUsageRefreshAt = new Map<string, number>();
   private readonly credentialCapabilities = new CredentialCapabilities();
   readonly onDidChangeLanguageModelChatInformation = this.changeEmitter.event;
   readonly onDidChangeUsage = this.usageEmitter.event;
@@ -84,6 +87,10 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
       if (this.entries.has(credentialRef)) continue;
       this.catalogs.delete(credentialRef);
     }
+    for (const credentialRef of this.lastUsageRefreshAt.keys()) {
+      if (this.entries.has(credentialRef)) continue;
+      this.lastUsageRefreshAt.delete(credentialRef);
+    }
   }
 
   private get activeCredentialRef(): string {
@@ -115,12 +122,30 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
 
   async refreshUsage(credentialRef = this.activeCredentialRef): Promise<OllamaUsageSnapshot> {
     const apiKey = this.requireApiKey(credentialRef);
+    // Recorded when the fetch starts so failing endpoints are throttled too.
+    this.lastUsageRefreshAt.set(credentialRef, Date.now());
     try {
       const response = await fetch(OLLAMA_ENDPOINTS.usage, {
         headers: ollamaHeaders(apiKey, "application/json", this.userAgent),
       });
       if (!response.ok) throw await apiError("Unable to load Ollama Cloud subscription usage", response);
-      const next = mergeAccountUsage(this.usageFor(credentialRef), await response.json());
+      let next = mergeAccountUsage(this.usageFor(credentialRef), await response.json());
+      // Additive balance enrichment: a balance failure degrades gracefully
+      // and must never fail an otherwise successful refresh.
+      try {
+        const balance = await fetch(OLLAMA_ENDPOINTS.balance, {
+          headers: ollamaHeaders(apiKey, "application/json", this.userAgent),
+        });
+        if (balance.ok) {
+          next = mergeBalanceUsage(next, await balance.json());
+        } else if (this.debugLogging) {
+          this.output.appendLine(`[usage] balance refresh skipped: HTTP ${balance.status}`);
+        }
+      } catch (error) {
+        if (this.debugLogging) {
+          this.output.appendLine(`[usage] balance refresh failed: ${messageOf(error)}`);
+        }
+      }
       this.setUsage(credentialRef, next);
       if (next.error) throw new Error(next.error);
       return next;
@@ -132,6 +157,14 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
       });
       throw error;
     }
+  }
+
+  /** Best-effort usage refresh after a chat request, throttled per credential. */
+  private refreshUsageAfterRequest(credentialRef: string): void {
+    if (!shouldAutoRefreshUsage(Date.now(), this.lastUsageRefreshAt.get(credentialRef))) return;
+    void this.refreshUsage(credentialRef).catch((error) => {
+      this.output.appendLine(`[usage] post-request refresh failed: ${messageOf(error)}`);
+    });
   }
 
   async refreshModels(): Promise<readonly CloudModel[]> {
@@ -286,9 +319,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
         );
       }
       validateResponseCompletion(model.id, streamState, request.requiresToolCall);
-      void this.refreshUsage(information.credentialRef).catch((error) => {
-        this.output.appendLine(`[usage] post-request refresh failed: ${messageOf(error)}`);
-      });
+      this.refreshUsageAfterRequest(information.credentialRef);
     } catch (error) {
       if (token.isCancellationRequested) return;
       if (timedOut) {

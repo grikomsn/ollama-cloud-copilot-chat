@@ -91,12 +91,62 @@ const THINKING_PROFILES = new Map<string, ThinkingProfile>([
   ["nemotron-3-ultra", BOOLEAN_PROFILE],
 ]);
 
+/**
+ * Models where disabling thinking still leaks a reasoning trace, verified by
+ * live probes (mirroring pi-ollama-cloud's OFF_NULL table): derived profiles
+ * hide the `off` choice for these families/ids so the model stays model-managed.
+ */
+const OFF_NULL_EXACT = new Set(["minimax-m2.7"]);
+const OFF_NULL_FAMILIES = ["gpt-oss"];
+
+function hidesOff(id: string): boolean {
+  return OFF_NULL_EXACT.has(id) || OFF_NULL_FAMILIES.some((prefix) => id.startsWith(prefix));
+}
+
+/** Maps a models.dev effort value onto the picker's graded choice. */
+function gradedChoice(value: string): ThinkingChoice | undefined {
+  if (value === "low" || value === "medium" || value === "high" || value === "max") return value;
+  if (value === "xhigh" || value === "ultra") return "max";
+  return undefined;
+}
+
+const GRADED_ORDER: readonly ThinkingChoice[] = ["low", "medium", "high", "max"];
+
+/**
+ * Derives a picker profile from models.dev reasoning options (plan R4):
+ * toggle-only models become boolean, effort values become graded choices
+ * (xhigh/ultra fold into max), and `off` is offered unless the model is
+ * verified to leak a trace when thinking is disabled. Degenerate results
+ * (fewer than two selectable values) yield no picker so the model stays
+ * model-managed instead of offering a wrong control.
+ */
+export function deriveThinkingProfile(id: string, options: readonly string[]): ThinkingProfile | undefined {
+  const graded = GRADED_ORDER.filter((choice) => options.some((value) => gradedChoice(value) === choice));
+  const toggle = options.includes("toggle");
+  if (!toggle && graded.length === 0) return undefined;
+  const includeOff = !hidesOff(id);
+  if (toggle && graded.length === 0) return includeOff ? BOOLEAN_PROFILE : undefined;
+  const values: ThinkingChoice[] = [...(includeOff ? ["off" as const] : []), ...graded];
+  if (values.length < 2) return undefined;
+  const preferred = values.includes("high") ? "high" : values.includes("max") ? "max" : values[values.length - 1];
+  return {
+    values,
+    defaultValue: preferred,
+    title: "Thinking Effort",
+  };
+}
+
+/** Resolves the thinking profile: hand-verified first, then models.dev-derived. */
+function profileFor(model: CloudModel): ThinkingProfile | undefined {
+  return thinkingProfile(model.id) ?? deriveThinkingProfile(model.id, model.reasoningOptions ?? []);
+}
+
 export function buildThinkingSchema(model: CloudModel): {
   type: "object";
   properties: Record<string, Record<string, unknown>>;
 } | undefined {
   if (!model.capabilities.thinking) return undefined;
-  const profile = thinkingProfile(model.id);
+  const profile = profileFor(model);
   if (!profile) return undefined;
   return {
     type: "object",
@@ -122,7 +172,7 @@ export function resolveThinkValue(
   configuration: Readonly<Record<string, unknown>> | undefined,
 ): ThinkValue | undefined {
   if (!model.capabilities.thinking) return undefined;
-  const profile = thinkingProfile(model.id);
+  const profile = profileFor(model);
   if (!profile) return undefined;
   const configured = configuration?.reasoningEffort ?? configuration?.thinkingEffort;
   const normalized = normalizeChoice(configured);

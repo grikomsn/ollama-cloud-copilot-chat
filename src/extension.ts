@@ -3,6 +3,8 @@ import { registerInlineCompletions } from "./autocomplete";
 import { NativeEntries } from "./auth/auth";
 import { OllamaCloudProvider } from "./provider";
 import { OLLAMA_WEB_SEARCH_TOOL_NAME, OllamaWebSearchTool } from "./tools/registered/web-search";
+import { OLLAMA_WEB_FETCH_TOOL_NAME, OllamaWebFetchTool } from "./tools/registered/web-fetch";
+import { createWebResultCache } from "./tools/registered/web-cache";
 import { type OllamaUsageSnapshot } from "./usage/domain";
 import { renderUsageStatus, updateUsageStatusVisibility } from "./usage/presentation";
 import { registerCommands } from "./commands/commands";
@@ -41,6 +43,9 @@ export function activate(
     vscode.StatusBarAlignment.Right,
     92,
   );
+  // Session-scoped cache shared by the web tools (plan R6): repeated searches
+  // and page reads within the TTL cost 0 API calls.
+  const webResultCache = createWebResultCache();
   usageStatus.name = "Ollama Cloud subscription usage";
   usageStatus.command = "ollamaCloudCopilot.showUsage";
   renderUsageStatus(usageStatus, provider.getUsageSnapshot());
@@ -52,6 +57,11 @@ export function activate(
     vscode.lm.registerLanguageModelChatProvider("ollama-cloud", provider),
     vscode.lm.registerTool(OLLAMA_WEB_SEARCH_TOOL_NAME, new OllamaWebSearchTool(
       (capability) => provider.getApiKeyForCapability(capability),
+      webResultCache,
+    )),
+    vscode.lm.registerTool(OLLAMA_WEB_FETCH_TOOL_NAME, new OllamaWebFetchTool(
+      (capability) => provider.getApiKeyForCapability(capability),
+      webResultCache,
     )),
     vscode.workspace.onDidChangeConfiguration((event) => {
       if (event.affectsConfiguration("ollamaCloudCopilot.maxOutputTokens")

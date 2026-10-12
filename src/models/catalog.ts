@@ -27,6 +27,7 @@ export interface CloudModel {
   readonly parameterSize?: string;
   readonly quantization?: string;
   readonly capabilities: ModelCapabilities;
+  readonly reasoningOptions?: readonly string[];
   readonly retirementDate?: string;
 }
 
@@ -63,21 +64,21 @@ export type Fetch = (input: string | URL | Request, init?: RequestInit) => Promi
 // This snapshot keeps the picker useful before authentication and records
 // output ceilings that /api/show does not currently publish.
 const SNAPSHOT: readonly SnapshotModel[] = [
-  { id: "glm-5.3", contextLength: 1048576, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
-  { id: "glm-5.3-flash", contextLength: 1048576, maxOutputTokens: 131072, capabilities: "vision thinking completion tools" },
-  { id: "deepseek-v4.1-flash", contextLength: 1048576, maxOutputTokens: 384000, capabilities: "vision thinking completion tools" },
-  { id: "kimi-k3", contextLength: 1048576, maxOutputTokens: 131072, capabilities: "vision thinking completion tools" },
+  { id: "glm-5.3", contextLength: 1048576, maxOutputTokens: 524288, capabilities: "thinking completion tools" },
+  { id: "glm-5.3-flash", contextLength: 1048576, maxOutputTokens: 524288, capabilities: "vision thinking completion tools" },
+  { id: "deepseek-v4.1-flash", contextLength: 1048576, maxOutputTokens: 393216, capabilities: "vision thinking completion tools" },
+  { id: "kimi-k3", contextLength: 1048576, maxOutputTokens: 524288, capabilities: "vision thinking completion tools" },
   { id: "kimi-k2.7-code", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
   { id: "kimi-k2.6", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
   { id: "glm-5.2", contextLength: 1048576, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
   { id: "minimax-m3", contextLength: 512000, maxOutputTokens: 131072, capabilities: "vision thinking completion tools" },
-  { id: "nemotron-3-ultra", contextLength: 262144, maxOutputTokens: 128000, capabilities: "thinking completion tools" },
-  { id: "deepseek-v4-pro:0813", contextLength: 1048576, maxOutputTokens: 384000, capabilities: "thinking completion tools" },
+  { id: "nemotron-3-ultra", contextLength: 262144, maxOutputTokens: 65536, capabilities: "thinking completion tools" },
+  { id: "deepseek-v4-pro:0813", contextLength: 1048576, maxOutputTokens: 65536, capabilities: "thinking completion tools" },
   { id: "gemma4:31b", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
-  { id: "minimax-m2.7", contextLength: 196608, maxOutputTokens: 196608, capabilities: "thinking completion tools" },
+  { id: "minimax-m2.7", contextLength: 196608, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
   { id: "nemotron-3-super", contextLength: 262144, maxOutputTokens: 65536, capabilities: "thinking completion tools" },
   { id: "nemotron-3-nano:30b", contextLength: 262144, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
-  { id: "mistral-large-4", contextLength: 1048576, maxOutputTokens: 1048576, capabilities: "vision thinking completion tools" },
+  { id: "mistral-large-4", contextLength: 1048576, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
   { id: "mistral-large-3:675b", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision completion tools" },
   { id: "gpt-oss:120b", contextLength: 131072, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
   { id: "gpt-oss:20b", contextLength: 131072, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
@@ -191,6 +192,7 @@ export function modelFromShow(
     parameterSize: nonEmpty(show.details?.parameter_size),
     quantization: nonEmpty(show.details?.quantization_level),
     capabilities: capabilitiesFrom(capabilityNames),
+    ...(metadata?.reasoningOptions?.length ? { reasoningOptions: metadata.reasoningOptions } : {}),
     retirementDate: fallback.retirementDate,
   };
 }
@@ -249,6 +251,7 @@ function modelFromSnapshot(model: SnapshotModel, metadata?: ModelsDevModelMetada
     capabilities: hasVerifiedFallback || !metadata
       ? capabilitiesFrom(model.capabilities.split(" "))
       : capabilitiesFromMetadata(metadata),
+    ...(metadata?.reasoningOptions?.length ? { reasoningOptions: metadata.reasoningOptions } : {}),
     retirementDate: model.retirementDate,
   };
 }
@@ -287,7 +290,12 @@ function isCloudModel(value: unknown): value is CloudModel {
     && validTokenCount(model.maxOutputTokens)
     && typeof model.capabilities?.imageInput === "boolean"
     && typeof model.capabilities.toolCalling === "boolean"
-    && typeof model.capabilities.thinking === "boolean";
+    && typeof model.capabilities.thinking === "boolean"
+    && (model.reasoningOptions === undefined || isStringArray(model.reasoningOptions));
+}
+
+function isStringArray(value: unknown): value is readonly string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === "string");
 }
 
 function capabilitiesFrom(values: readonly string[]): ModelCapabilities {

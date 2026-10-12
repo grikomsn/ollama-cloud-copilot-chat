@@ -3,10 +3,12 @@ import test from "node:test";
 import { type Fetch } from "../../models/catalog";
 import {
   createWebSearchRequestCancellation,
+  formatExpandedSearchResult,
   formatOllamaWebSearch,
   searchOllamaWeb,
   type OllamaWebSearchResponse,
 } from "./web-search-client";
+import { createWebResultCache } from "./web-cache";
 
 test("posts a bounded Ollama web search request and parses results", async () => {
   let request: { input: string | URL | Request; init?: RequestInit } | undefined;
@@ -55,20 +57,68 @@ test("uses Ollama's default result count and rejects invalid search input", asyn
   );
 });
 
-test("formats results for a language-model tool result and bounds large output", () => {
+test("formats results with truncated markers, an expand hint, and a provenance footer", () => {
   const response: OllamaWebSearchResponse = {
-    results: [{
-      title: "A result",
-      url: "https://example.com",
-      content: "x".repeat(20_000),
-    }],
+    results: [
+      { title: "A result", url: "https://example.com", content: "x".repeat(20_000) },
+      { title: "Short result", url: "https://example.org", content: "tiny" },
+    ],
   };
 
-  const output = formatOllamaWebSearch("test query", response);
+  const output = formatOllamaWebSearch("test query", response, 5);
   assert.match(output, /Search results for: \"test query\"/);
-  assert.match(output, /https:\/\/example\.com/);
-  assert.match(output, /results truncated/);
-  assert.ok(output.length < 12_100);
+  assert.match(output, /1\. \[truncated\] A result/);
+  assert.match(output, /2\. \[complete\] Short result/);
+  assert.match(
+    output,
+    /Expand: call ollama-cloud_web-search\(query=\"test query\", max_results=5, expand=<index>\)/,
+  );
+  assert.match(output, /# live query/);
+  const cachedOutput = formatOllamaWebSearch("test query", { ...response, fromCache: true }, 5);
+  assert.match(cachedOutput, /# from cache/);
+});
+
+test("expands a cached result in full and rejects out-of-range indexes", () => {
+  const response: OllamaWebSearchResponse = {
+    fromCache: true,
+    results: [{ title: "A result", url: "https://example.com", content: "full content" }],
+  };
+  const output = formatExpandedSearchResult("news", response, 1);
+  assert.match(output, /Result 1 of \"news\" \(full content, 12 chars\)/);
+  assert.match(output, /full content/);
+  assert.match(output, /# from cache/);
+  assert.throws(() => formatExpandedSearchResult("news", response, 2), /out of range/);
+  assert.throws(() => formatExpandedSearchResult("news", response, 0), /out of range/);
+});
+
+test("serves repeat searches from the session cache at 0 extra API calls", async () => {
+  let calls = 0;
+  const fetchImpl: Fetch = async () => {
+    calls += 1;
+    return new Response(JSON.stringify({
+      results: [{ title: "t", url: "https://example.com", content: "c".repeat(600) }],
+    }), { status: 200 });
+  };
+  const cache = createWebResultCache();
+
+  const first = await searchOllamaWeb({ query: "news", max_results: 5 }, "k", undefined, fetchImpl, cache);
+  assert.equal(first.fromCache, undefined);
+  assert.equal(calls, 1);
+
+  const second = await searchOllamaWeb({ query: "news", max_results: 5 }, "k", undefined, fetchImpl, cache);
+  assert.equal(second.fromCache, true);
+  assert.equal(calls, 1);
+
+  const refreshed = await searchOllamaWeb(
+    { query: "news", max_results: 5, refresh: true }, "k", undefined, fetchImpl, cache,
+  );
+  assert.equal(refreshed.fromCache, undefined);
+  assert.equal(calls, 2);
+
+  // The cache key includes max_results, so a different count is a new search.
+  const otherCount = await searchOllamaWeb({ query: "news", max_results: 10 }, "k", undefined, fetchImpl, cache);
+  assert.equal(otherCount.fromCache, undefined);
+  assert.equal(calls, 3);
 });
 
 test("aborts a web search request when cancellation was already requested", () => {

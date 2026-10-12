@@ -1,13 +1,18 @@
 import * as vscode from "vscode";
 import {
   createWebSearchRequestCancellation,
+  formatExpandedSearchResult,
   formatOllamaWebSearch,
   searchOllamaWeb,
   type OllamaWebSearchInput,
 } from "./web-search-client";
+import type { WebResultCache } from "./web-cache";
 
 export class OllamaWebSearchTool implements vscode.LanguageModelTool<OllamaWebSearchInput> {
-  constructor(private readonly resolveApiKey: (capability: string) => Promise<string | undefined>) {}
+  constructor(
+    private readonly resolveApiKey: (capability: string) => Promise<string | undefined>,
+    private readonly cache?: WebResultCache,
+  ) {}
 
   prepareInvocation(
     options: vscode.LanguageModelToolInvocationPrepareOptions<OllamaWebSearchInput>,
@@ -34,9 +39,14 @@ export class OllamaWebSearchTool implements vscode.LanguageModelTool<OllamaWebSe
         options.input,
         apiKey,
         controller.signal,
+        undefined,
+        this.cache,
       );
+      const text = options.input.expand !== undefined
+        ? formatExpandedSearchResult(query, response, options.input.expand)
+        : formatOllamaWebSearch(query, response, options.input.max_results);
       return new vscode.LanguageModelToolResult([
-        new vscode.LanguageModelTextPart(formatOllamaWebSearch(query, response)),
+        new vscode.LanguageModelTextPart(text),
       ]);
     } finally {
       cancellation.dispose();

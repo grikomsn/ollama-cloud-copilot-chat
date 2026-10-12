@@ -6,7 +6,9 @@ export const OLLAMA_ENDPOINTS = {
   models: `${OLLAMA_CLOUD_API}/tags`,
   model: `${OLLAMA_CLOUD_API}/show`,
   usage: `${OLLAMA_CLOUD_API}/usage`,
+  balance: `${OLLAMA_CLOUD_API}/balance`,
   webSearch: `${OLLAMA_CLOUD_API}/web_search`,
+  webFetch: `${OLLAMA_CLOUD_API}/web_fetch`,
 } as const;
 
 export type OllamaAccept = "application/json" | "application/x-ndjson";

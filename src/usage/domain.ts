@@ -42,6 +42,9 @@ export interface OllamaUsageSnapshot {
   quotaUnavailable?: boolean;
   session?: AccountUsageWindow;
   weekly?: AccountUsageWindow;
+  monthly?: AccountUsageWindow;
+  plan?: BalancePlanUsage;
+  purchasedUsd?: number;
   activityCost?: string;
   activityPeriod?: {
     type?: string;
@@ -54,8 +57,16 @@ export interface OllamaUsageSnapshot {
   error?: string;
 }
 
+/** Allowance-derived plan balance from the documented /api/balance endpoint. */
+export interface BalancePlanUsage {
+  usedRatio: number;
+  balanceUsd: number;
+  allowanceUsd: number;
+  renewsAt?: string;
+}
+
 export interface UsageDisplayRow {
-  kind: "session" | "weekly" | "activity" | "tracked" | "request" | "warning" | "empty";
+  kind: "session" | "weekly" | "monthly" | "plan" | "activity" | "tracked" | "request" | "warning" | "empty";
   label: string;
   description?: string;
   detail?: string;
@@ -112,6 +123,109 @@ export function mergeAccountUsage(
   };
 }
 
+// --- Balance enrichment (documented /api/balance endpoint, plan R3) ---
+
+interface BalanceWindowPayload {
+  remaining_percent: number;
+  resets_at?: string;
+}
+
+interface BalanceIncludedPayload {
+  session?: BalanceWindowPayload;
+  weekly?: BalanceWindowPayload;
+  monthly?: BalanceWindowPayload;
+  balance_usd?: number;
+  allowance_usd?: number;
+  period?: { from?: string; until?: string };
+}
+
+interface BalanceResponsePayload {
+  included?: BalanceIncludedPayload;
+  purchased?: { balance_usd?: number };
+}
+
+const BALANCE_WINDOW_KEYS = ["session", "weekly", "monthly"] as const;
+
+function isBalanceWindowPayload(value: unknown): value is BalanceWindowPayload {
+  if (!isRecord(value) || !isFiniteNumber(value.remaining_percent)) return false;
+  return value.resets_at === undefined || typeof value.resets_at === "string";
+}
+
+/** Strict validator for the documented /api/balance response shape. */
+export function isBalanceResponse(data: unknown): data is BalanceResponsePayload {
+  if (!isRecord(data)) return false;
+  const purchased = data.purchased;
+  const hasPurchased = isRecord(purchased) && isFiniteNumber(purchased.balance_usd);
+  if (purchased !== undefined && !hasPurchased) return false;
+  const included = data.included;
+  if (included === undefined) return hasPurchased;
+  if (!isRecord(included)) return false;
+  for (const key of BALANCE_WINDOW_KEYS) {
+    const window = included[key];
+    if (window !== undefined && !isBalanceWindowPayload(window)) return false;
+  }
+  const balance = included.balance_usd;
+  const allowance = included.allowance_usd;
+  if (balance !== undefined && !isFiniteNumber(balance)) return false;
+  if (allowance !== undefined && !isFiniteNumber(allowance)) return false;
+  if ((balance === undefined) !== (allowance === undefined)) return false;
+  const period = included.period;
+  if (period !== undefined) {
+    if (!isRecord(period)) return false;
+    if (period.from !== undefined && typeof period.from !== "string") return false;
+    if (period.until !== undefined && typeof period.until !== "string") return false;
+  }
+  const hasWindow = BALANCE_WINDOW_KEYS.some((key) => included[key] !== undefined);
+  return hasWindow
+    || (isFiniteNumber(balance) && isFiniteNumber(allowance))
+    || hasPurchased;
+}
+
+function balanceWindowToUsage(window: BalanceWindowPayload): AccountUsageWindow {
+  return {
+    usedRatio: Math.min(Math.max(1 - window.remaining_percent / 100, 0), 1),
+    models: [],
+  };
+}
+
+/**
+ * Merges /api/balance data additively: never overwrites richer account-usage
+ * windows and never touches the snapshot error, which stays owned by the
+ * account merge. An invalid balance payload leaves the snapshot untouched so
+ * a balance problem cannot fail an otherwise successful refresh.
+ */
+export function mergeBalanceUsage(
+  current: OllamaUsageSnapshot,
+  payload: unknown,
+  updatedAt = Date.now(),
+): OllamaUsageSnapshot {
+  if (!isBalanceResponse(payload)) return current;
+  const next: OllamaUsageSnapshot = { ...current, updatedAt };
+  const included = payload.included;
+  if (included) {
+    for (const key of BALANCE_WINDOW_KEYS) {
+      const window = included[key];
+      if (window !== undefined && next[key] === undefined) next[key] = balanceWindowToUsage(window);
+    }
+    if (
+      isFiniteNumber(included.balance_usd) && isFiniteNumber(included.allowance_usd)
+      && included.allowance_usd > 0
+    ) {
+      next.plan = {
+        usedRatio: Math.min(Math.max(1 - included.balance_usd / included.allowance_usd, 0), 1),
+        balanceUsd: included.balance_usd,
+        allowanceUsd: included.allowance_usd,
+        ...(included.period?.until ? { renewsAt: included.period.until } : {}),
+      };
+    }
+  }
+  const purchased = payload.purchased;
+  if (purchased?.balance_usd !== undefined && purchased.balance_usd > 0) {
+    next.purchasedUsd = purchased.balance_usd;
+  }
+  return next;
+}
+
 export function recordRequestUsage(
   current: OllamaUsageSnapshot,
   modelId: string,
@@ -148,8 +262,10 @@ export function formatUsageStatusBar(snapshot: OllamaUsageSnapshot): string {
   const windows = [
     snapshot.session ? `5h ${formatPercent(snapshot.session.usedRatio)}` : undefined,
     snapshot.weekly ? `7d ${formatPercent(snapshot.weekly.usedRatio)}` : undefined,
+    snapshot.monthly ? `30d ${formatPercent(snapshot.monthly.usedRatio)}` : undefined,
   ].filter(Boolean);
   if (windows.length) return `$(pulse) Ollama ${windows.join(" · ")}`;
+  if (snapshot.plan) return `$(pulse) Ollama plan ${formatPercent(snapshot.plan.usedRatio)}`;
   if (snapshot.error) return "$(warning) Ollama usage";
   if (snapshot.quotaUnavailable) return "$(cloud) Ollama activity";
   return "$(cloud) Ollama Cloud";
@@ -159,6 +275,15 @@ export function formatUsageTooltip(snapshot: OllamaUsageSnapshot): string {
   const lines = ["Ollama Cloud subscription usage"];
   if (snapshot.session) lines.push(`Session (5h): ${formatPercent(snapshot.session.usedRatio)} used`);
   if (snapshot.weekly) lines.push(`Weekly (7d): ${formatPercent(snapshot.weekly.usedRatio)} used`);
+  if (snapshot.monthly) lines.push(`Monthly (30d): ${formatPercent(snapshot.monthly.usedRatio)} used`);
+  if (snapshot.plan) {
+    lines.push(
+      `Included balance: $${snapshot.plan.balanceUsd.toFixed(2)} of $${snapshot.plan.allowanceUsd.toFixed(2)} remaining`
+        + ` (${formatPercent(snapshot.plan.usedRatio)} used)`,
+    );
+    if (snapshot.plan.renewsAt) lines.push(`Included allowance renews: ${snapshot.plan.renewsAt}`);
+  }
+  if (snapshot.purchasedUsd !== undefined) lines.push(`Purchased credits: $${snapshot.purchasedUsd.toFixed(2)}`);
   if (snapshot.requestActivity) lines.push(`Account activity: ${snapshot.requestActivity.requestCount.toLocaleString()} requests`);
   if (snapshot.quotaUnavailable) lines.push("The usage endpoint did not provide quota limits.");
   if (snapshot.tracked) {
@@ -181,6 +306,25 @@ export function formatUsageRows(snapshot: OllamaUsageSnapshot): UsageDisplayRow[
   const rows: UsageDisplayRow[] = [];
   if (snapshot.session) rows.push(windowRow("session", "Session usage (5h)", snapshot.session));
   if (snapshot.weekly) rows.push(windowRow("weekly", "Weekly usage (7d)", snapshot.weekly));
+  if (snapshot.monthly) rows.push(windowRow("monthly", "Monthly usage (30d)", snapshot.monthly));
+  if (snapshot.plan) {
+    rows.push({
+      kind: "plan",
+      label: "Included plan balance",
+      description: `$${snapshot.plan.balanceUsd.toFixed(2)} of $${snapshot.plan.allowanceUsd.toFixed(2)} remaining`,
+      detail: [
+        `${formatPercent(snapshot.plan.usedRatio)} used`,
+        snapshot.plan.renewsAt ? `renews ${snapshot.plan.renewsAt}` : undefined,
+      ].filter(Boolean).join(" · ") || undefined,
+    });
+  }
+  if (snapshot.purchasedUsd !== undefined) {
+    rows.push({
+      kind: "plan",
+      label: "Purchased credits",
+      description: `$${snapshot.purchasedUsd.toFixed(2)}`,
+    });
+  }
   if (snapshot.requestActivity) rows.push({
     kind: "activity", label: "Account request activity", description: `${snapshot.requestActivity.requestCount.toLocaleString()} requests`,
     detail: [snapshot.requestActivity.startsAt, snapshot.requestActivity.endsAt].filter(Boolean).join(" – "),
@@ -251,7 +395,7 @@ function parseWindow(value: unknown): AccountUsageWindow | undefined {
 }
 
 function windowRow(
-  kind: "session" | "weekly",
+  kind: "session" | "weekly" | "monthly",
   label: string,
   window: AccountUsageWindow,
 ): UsageDisplayRow {
@@ -314,4 +458,8 @@ function compactObject<T extends object>(value: T): T {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
 }

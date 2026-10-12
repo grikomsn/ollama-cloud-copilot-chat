@@ -10,7 +10,9 @@ test("centralizes Ollama Cloud endpoints", () => {
     models: "https://ollama.com/api/tags",
     model: "https://ollama.com/api/show",
     usage: "https://ollama.com/api/usage",
+    balance: "https://ollama.com/api/balance",
     webSearch: "https://ollama.com/api/web_search",
+    webFetch: "https://ollama.com/api/web_fetch",
   });
 });
 

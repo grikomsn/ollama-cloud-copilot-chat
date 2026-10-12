@@ -26,7 +26,7 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
   assert.equal(models.length, 18);
   const glm53 = models.find((model) => model.id === "glm-5.3");
   assert.equal(glm53?.contextLength, 1048576);
-  assert.equal(glm53?.maxOutputTokens, 131072);
+  assert.equal(glm53?.maxOutputTokens, 524288);
   assert.deepEqual(glm53?.capabilities, {
     imageInput: false,
     toolCalling: true,
@@ -34,7 +34,7 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
   });
   const glm53Flash = models.find((model) => model.id === "glm-5.3-flash");
   assert.equal(glm53Flash?.contextLength, 1048576);
-  assert.equal(glm53Flash?.maxOutputTokens, 131072);
+  assert.equal(glm53Flash?.maxOutputTokens, 524288);
   assert.deepEqual(glm53Flash?.capabilities, {
     imageInput: true,
     toolCalling: true,
@@ -42,7 +42,7 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
   });
   const deepseek = models.find((model) => model.id === "deepseek-v4.1-flash");
   assert.equal(deepseek?.contextLength, 1048576);
-  assert.equal(deepseek?.maxOutputTokens, 384000);
+  assert.equal(deepseek?.maxOutputTokens, 393216);
   assert.deepEqual(deepseek?.capabilities, {
     imageInput: true,
     toolCalling: true,
@@ -59,7 +59,7 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
   assert.equal(models.some((model) => model.id === "qwen3.5:397b"), false);
   const deepseekPro0813 = models.find((model) => model.id === "deepseek-v4-pro:0813");
   assert.equal(deepseekPro0813?.contextLength, 1048576);
-  assert.equal(deepseekPro0813?.maxOutputTokens, 384000);
+  assert.equal(deepseekPro0813?.maxOutputTokens, 65536);
   assert.deepEqual(deepseekPro0813?.capabilities, {
     imageInput: false,
     toolCalling: true,
@@ -67,7 +67,7 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
   });
   const kimi = models.find((model) => model.id === "kimi-k3");
   assert.equal(kimi?.contextLength, 1048576);
-  assert.equal(kimi?.maxOutputTokens, 131072);
+  assert.equal(kimi?.maxOutputTokens, 524288);
   assert.deepEqual(kimi?.capabilities, {
     imageInput: true,
     toolCalling: true,

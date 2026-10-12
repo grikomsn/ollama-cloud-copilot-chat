@@ -214,6 +214,16 @@
               "default": 5,
               "description": "The maximum number of results to return."
             },
+            "refresh": {
+              "type": "boolean",
+              "default": false,
+              "description": "Bypass the cached search and re-call the API; the fresh result replaces the cache entry."
+            },
+            "expand": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Return the full content of this 1-based result instead of snippets, from the cached search at 0 extra API calls."
+            },
             "credential_capability": {
               "type": "string",
               "description": "Opaque request capability supplied by the selected Ollama Cloud model."
@@ -221,6 +231,53 @@
           },
           "required": [
             "query"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "ollama-cloud_web-fetch",
+        "tags": [
+          "web",
+          "fetch",
+          "ollama-cloud"
+        ],
+        "toolReferenceName": "ollamaWebFetch",
+        "displayName": "Ollama Cloud Web Fetch",
+        "modelDescription": "Fetch a public web page through Ollama Cloud and read its extracted title, text content, and links. Long pages are returned in 3000-character slices: pass offset to continue reading from a character index, or full to read everything remaining. Requires an Ollama Cloud API key.",
+        "userDescription": "Fetch a public web page through Ollama Cloud.",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(globe)",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "description": "URL to fetch and extract content from."
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "description": "Start reading from this character index (default 0)."
+            },
+            "full": {
+              "type": "boolean",
+              "default": false,
+              "description": "Return all remaining content from offset in one call (default false)."
+            },
+            "refresh": {
+              "type": "boolean",
+              "default": false,
+              "description": "Bypass the cached page (or cached failure) and re-call the API."
+            },
+            "credential_capability": {
+              "type": "string",
+              "description": "Opaque request capability supplied by the selected Ollama Cloud model."
+            }
+          },
+          "required": [
+            "url"
           ],
           "additionalProperties": false
         }

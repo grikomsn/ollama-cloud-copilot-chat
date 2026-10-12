@@ -69,6 +69,9 @@ function requireBundled() {
   return {
     catalog: require_(resolved),
     metadata: require_(path.join(ROOT, "out", "models/metadata.js")),
+    limitProbe: require_(path.join(ROOT, "out", "models/limit-probe.js")),
+    pricing: require_(path.join(ROOT, "out", "models/pricing.js")),
+    pricingDrift: require_(path.join(ROOT, "out", "models/pricing-drift.js")),
   };
 }
 
@@ -88,6 +91,65 @@ function srcNewerThan(target) {
 }
 
 const LINE_PATTERN = /{ id: "([^"]+)", contextLength: (\d+), maxOutputTokens: (\d+), capabilities: "([^"]*)" }/;
+
+// Max-output-token probing (plan R2): /api/show does not publish output
+// ceilings, so each snapshot model still hosted upstream is probed against
+// the OpenAI-compatible chat endpoint with ascending max_tokens tiers and a
+// stop sequence; a rejection reports the exact limit in its message. The
+// tier walk decision lives in src/models/limit-probe.ts (compiled to out/)
+// so it is unit-testable; indeterminate probes keep the existing value.
+const PROBE_TIMEOUT_MS = 60_000;
+const PROBE_WORKERS = 4;
+const CHAT_COMPLETIONS_URL = "https://ollama.com/v1/chat/completions";
+
+/** Probes one model's max output tokens; returns a status plus the best verified ceiling. */
+async function probeMaxTokens(id, apiKey, bundled) {
+  const { PROBE_TIERS, decideProbeStep } = bundled.limitProbe;
+  for (const tier of PROBE_TIERS) {
+    let accepted = false;
+    let errorMessage;
+    try {
+      const response = await fetch(CHAT_COMPLETIONS_URL, {
+        method: "POST",
+        headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+        body: JSON.stringify({
+          model: id,
+          messages: [{ role: "user", content: "Reply with exactly: OK" }],
+          max_tokens: tier,
+          stop: ["OK"],
+        }),
+        signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+      });
+      if (response.ok) {
+        accepted = true;
+      } else {
+        errorMessage = await response.text();
+      }
+    } catch (error) {
+      errorMessage = error instanceof Error ? error.message : String(error);
+    }
+    const step = decideProbeStep(tier, accepted, errorMessage);
+    if (step.action === "ascend") continue;
+    if (step.action === "accept") return { status: "probed", limit: step.limit };
+    if (step.action === "unproven") return { status: "unproven", limit: step.limit };
+    return { status: "indeterminate" };
+  }
+  return { status: "indeterminate" };
+}
+
+/** Runs the probe phase over snapshot entries still hosted upstream, `workers` at a time. */
+async function probeSnapshotLimits(snapshot, hostedIds, apiKey, bundled) {
+  const targets = snapshot.filter((entry) => hostedIds.includes(entry.id));
+  const probes = new Map();
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(PROBE_WORKERS, targets.length) }, async () => {
+    while (next < targets.length) {
+      const entry = targets[next++];
+      probes.set(entry.id, await probeMaxTokens(entry.id, apiKey, bundled));
+    }
+  }));
+  return probes;
+}
 
 /** Parses the snapshot lines, preserving their order. */
 function parseSnapshot() {
@@ -153,6 +215,7 @@ const main = async () => {
   }
 
   const snapshot = parseSnapshot();
+  const bundled = requireBundled();
   const snapshotIds = new Set(snapshot.map((entry) => entry.id));
   const removed = hostedIds.filter((id) => !snapshotIds.has(id));
   log(`Hosted ids missing from the snapshot (manual review; additions need models.dev output ceilings): ${removed.join(", ") || "none"}`);
@@ -174,6 +237,55 @@ const main = async () => {
       lineChanges.push({ entry, field: "capabilities", next: [...observed.caps].join(" "), text: `capabilities "${[...entry.caps].join(" ")}" -> "${[...observed.caps].join(" ")}"` });
     }
   }
+
+  const probes = await probeSnapshotLimits(snapshot, hostedIds, apiKey, bundled);
+  const probeCounts = { probed: 0, unproven: 0, indeterminate: 0 };
+  for (const entry of snapshot) {
+    const probe = probes.get(entry.id);
+    if (!probe) continue;
+    probeCounts[probe.status] += 1;
+    if (probe.status === "indeterminate") {
+      log(`WARNING: no limit probed for ${entry.id}; keeping its existing ${entry.maxOutputTokens}.`);
+      continue;
+    }
+    if (probe.status === "unproven") {
+      log(`Note: ${entry.id} accepted the top probe tier (${probe.limit}); its real limit may be higher.`);
+    }
+    if (probe.limit !== entry.maxOutputTokens) {
+      lineChanges.push({ entry, field: "maxOutputTokens", next: probe.limit, text: `maxOutputTokens ${entry.maxOutputTokens} -> ${probe.limit}` });
+    }
+  }
+  log(
+    `Max output tokens: ${probeCounts.probed} probed, ${probeCounts.unproven} unproven (top tier accepted), ${probeCounts.indeterminate} indeterminate.`,
+  );
+
+  // Pricing drift report (plan R5): the pricing page is server-rendered, so
+  // rows are regex-extracted (see src/models/pricing-drift.ts). Report-only:
+  // peak/off-peak row labeling and picker price categories are hand-maintained.
+  try {
+    const pricingResponse = await fetch("https://ollama.com/pricing", { signal: AbortSignal.timeout(15_000) });
+    if (!pricingResponse.ok) throw new Error(`https://ollama.com/pricing -> HTTP ${pricingResponse.status}`);
+    const rows = bundled.pricingDrift.parsePricingRows(await pricingResponse.text());
+    const { drifts, unmatchedLiveRows, unmatchedBundledIds } = bundled.pricingDrift.comparePricingRows(
+      bundled.pricing.PUBLISHED_MODEL_COSTS,
+      rows,
+    );
+    for (const drift of drifts) {
+      const note = drift.mayBePeakOffPeak ? " (may be peak vs off-peak row labeling; manual review)" : "";
+      log(`Pricing drift: ${drift.id}: ${drift.diffs.join(", ")}${note}`);
+    }
+    if (unmatchedLiveRows.length) {
+      log(`Live pricing rows without a bundled entry (manual review): ${unmatchedLiveRows.join(", ")}`);
+    }
+    if (unmatchedBundledIds.length) {
+      log(`Bundled pricing rows with no live table row (informational): ${unmatchedBundledIds.join(", ")}`);
+    }
+    log(drifts.length
+      ? `Pricing: ${drifts.length} bundled row(s) differ from the live page; report-only — pricing is hand-maintained.`
+      : "Pricing: bundled table matches the live page.");
+  } catch (error) {
+    log(`WARNING: pricing drift check skipped: ${error instanceof Error ? error.message : String(error)}`);
+  }
   for (const change of lineChanges) log(`Drift: ${change.entry.id}: ${change.text}`);
   if (!lineChanges.length) log("No drift; the snapshot already matches the live catalog.");
 
@@ -191,9 +303,13 @@ const main = async () => {
     for (const [, list] of changesByEntry) {
       let line = list[0].entry.line;
       for (const change of list) {
-        line = change.field === "contextLength"
-          ? line.replace(/(?<=contextLength: )\d+/, String(change.next))
-          : line.replace(/(?<=capabilities: ")[^"]*(?=")/, change.next);
+        if (change.field === "contextLength") {
+          line = line.replace(/(?<=contextLength: )\d+/, String(change.next));
+        } else if (change.field === "maxOutputTokens") {
+          line = line.replace(/(?<=maxOutputTokens: )\d+/, String(change.next));
+        } else {
+          line = line.replace(/(?<=capabilities: ")[^"]*(?=")/, change.next);
+        }
       }
       updated = updated.replace(list[0].entry.line, line);
     }

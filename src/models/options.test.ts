@@ -34,6 +34,53 @@ const EXPECTED_PROFILES = new Map<string, readonly string[]>([
   ["nemotron-3-ultra", ["off", "on"]],
 ]);
 
+test("derives a boolean profile from toggle-only reasoning options", () => {
+  const candidate = { ...model("future-toggle", "future"), reasoningOptions: ["toggle"] };
+  assert.deepEqual(buildThinkingSchema(candidate)?.properties.reasoningEffort.enum, ["off", "on"]);
+  assert.equal(resolveThinkValue(candidate, undefined), true);
+});
+
+test("derives graded profiles from effort reasoning options", () => {
+  const togglePlusEfforts = { ...model("future-effort", "future"), reasoningOptions: ["toggle", "high", "max"] };
+  assert.deepEqual(buildThinkingSchema(togglePlusEfforts)?.properties.reasoningEffort.enum, ["off", "high", "max"]);
+  assert.equal(resolveThinkValue(togglePlusEfforts, undefined), "high");
+
+  const effortOnly = { ...model("future-graded", "future"), reasoningOptions: ["low", "medium", "high"] };
+  assert.deepEqual(buildThinkingSchema(effortOnly)?.properties.reasoningEffort.enum, ["off", "low", "medium", "high"]);
+  assert.equal(resolveThinkValue(effortOnly, undefined), "high");
+});
+
+test("folds xhigh and ultra efforts into the max choice", () => {
+  const candidate = { ...model("future-ultra", "future"), reasoningOptions: ["toggle", "ultra", "xhigh", "low"] };
+  assert.deepEqual(buildThinkingSchema(candidate)?.properties.reasoningEffort.enum, ["off", "low", "max"]);
+});
+
+test("hides off for gpt-oss models in derived profiles", () => {
+  const candidate = { ...model("gpt-oss:30b", "gpt-oss"), reasoningOptions: ["low", "medium", "high"] };
+  assert.deepEqual(buildThinkingSchema(candidate)?.properties.reasoningEffort.enum, ["low", "medium", "high"]);
+  // An unsupported off choice falls back to the profile default.
+  assert.equal(resolveThinkValue(candidate, { reasoningEffort: "off" }), "high");
+});
+
+test("yields no picker for degenerate derived options", () => {
+  // minimax-m2.7 leaks a reasoning trace when thinking is disabled, so its
+  // toggle-only derivation would offer only "on" — no control at all.
+  const minimax = { ...model("minimax-m2.7", "minimax"), reasoningOptions: ["toggle"] };
+  assert.equal(buildThinkingSchema(minimax), undefined);
+
+  assert.equal(buildThinkingSchema({ ...model("future-empty", "future"), reasoningOptions: [] }), undefined);
+  assert.equal(buildThinkingSchema({ ...model("future-junk", "future"), reasoningOptions: ["none", "default"] }), undefined);
+  assert.equal(buildThinkingSchema(model("future-model", "future")), undefined);
+});
+
+test("hand-verified profiles win over models.dev derivations", () => {
+  // glm-5.3's hand profile defaults to max; the derivation would default to high.
+  const candidate = { ...model("glm-5.3", "glm"), reasoningOptions: ["toggle", "low", "high", "max"] };
+  const schema = buildThinkingSchema(candidate);
+  assert.deepEqual(schema?.properties.reasoningEffort.enum, ["low", "high", "max"]);
+  assert.equal(schema?.properties.reasoningEffort.default, "max");
+});
+
 test("unlisted tags inherit their family's verified profile", () => {
   for (const [id, values] of [
     ["gpt-oss:70b", ["low", "medium", "high"]],

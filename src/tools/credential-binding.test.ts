@@ -51,7 +51,44 @@ test("binds Ollama web search to the selected model credential", () => {
     { role: "tool", content: "result", tool_name: "ollama-cloud_web-search__capability_a" },
   ]);
 });
-
+test("binds Ollama web fetch alongside search to the selected model credential", () => {
+  const tools: OllamaTool[] = [
+    {
+      type: "function",
+      function: {
+        name: "ollama-cloud_web-search",
+        parameters: { type: "object", properties: { query: { type: "string" } } },
+      },
+    },
+    {
+      type: "function",
+      function: {
+        name: "ollama-cloud_web-fetch",
+        parameters: { type: "object", properties: { url: { type: "string" } } },
+      },
+    },
+  ];
+  const bound = bindCredentialToTools(tools, "capability-a");
+  assert.deepEqual(bound.tools.map((tool) => tool.function.name), [
+    "ollama-cloud_web-search__capability_a",
+    "ollama-cloud_web-fetch__capability_a",
+  ]);
+  assert.deepEqual(
+    bound.routeToolCall("ollama-cloud_web-fetch__capability_a", { url: "https://example.com" }),
+    {
+      name: "ollama-cloud_web-fetch",
+      input: { url: "https://example.com", credential_capability: "capability-a" },
+    },
+  );
+  assert.deepEqual(
+    bound.bindMessages([{ role: "tool", content: "page", tool_name: "ollama-cloud_web-fetch" }]),
+    [{ role: "tool", content: "page", tool_name: "ollama-cloud_web-fetch__capability_a" }],
+  );
+  assert.throws(
+    () => bound.routeToolCall("ollama-cloud_web-fetch__capability_b", { url: "https://example.com" }),
+    /not advertised/,
+  );
+});
 
 test("Harmony name repair preserves the request-bound web-search capability", () => {
   const bound = bindCredentialToTools([{ type: "function", function: { name: "ollama-cloud_web-search", parameters: { type: "object" } } }], "current-capability", true);
