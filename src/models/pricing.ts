@@ -20,7 +20,7 @@ export interface ModelPricingFields {
   readonly priceCategory: "low" | "medium" | "high" | "very_high";
 }
 
-const PUBLISHED_MODEL_COSTS: Readonly<Record<string, ModelCost>> = {
+export const PUBLISHED_MODEL_COSTS: Readonly<Record<string, ModelCost>> = {
   "deepseek-v4.1-flash": { input: 0.15, cacheRead: 0.003, output: 0.6 },
   "deepseek-v4-pro": { input: 0.66, cacheRead: 0.022, output: 1.98 },
   "gemma4": { input: 0.14, cacheRead: 0.05, output: 0.4 },
