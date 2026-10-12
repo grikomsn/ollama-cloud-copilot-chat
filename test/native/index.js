@@ -33,7 +33,8 @@ async function run() {
     }, source.token));
     const work = (await prepare("synthetic-work"))[0];
     const personal = (await prepare("synthetic-personal"))[0];
-    assert.notEqual(work.id, personal.id);
+    assert.equal(work.id, personal.id, "VS Code namespaces raw model IDs per entry group");
+    assert.equal(work.id, work.rawModelId);
     assert.notEqual(work.credentialRef, personal.credentialRef);
     assert.equal(provider.getFeatureApiKey(), "synthetic-personal", "Active key follows the most recent provisioning");
     const callsByKey = new Map();
