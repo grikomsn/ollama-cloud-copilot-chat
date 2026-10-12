@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.1.0
+
+### Minor Changes
+
+- 91defde: Surface allowance balance, purchased credits, monthly quota windows, and allowance renewal dates from the documented Ollama Cloud /api/balance endpoint in the usage status bar, tooltip, and Show Subscription Usage view. Balance fetches enrich the existing usage data and degrade gracefully when the endpoint is unavailable.
+- 91defde: Derive thinking pickers for newly hosted models from models.dev reasoning options instead of requiring a hand-verified profile. Toggle-only models get an on/off picker, effort grades map onto low/medium/high/max (xhigh and ultra fold into max), and models verified to leak a reasoning trace when thinking is disabled (gpt-oss family, minimax-m2.7) stay model-managed.
+- 91defde: Throttle automatic post-request subscription usage refreshes to once every five minutes per credential, so agent sessions with many requests no longer hammer the usage endpoint. Manual refreshes from Show Subscription Usage remain immediate.
+- 91defde: Add an Ollama Cloud Web Fetch language model tool. Models can now read public web pages through the same Ollama Cloud credential as web search, with 3000-character slices, offset/full pagination for long pages, first-call link listings, and failure diagnostics that suggest next steps.
+- 91defde: Cache Ollama Cloud web tool results for the session: repeated searches and page reads within 24 hours cost 0 API calls (failed fetches are retried after 15 minutes; auth, rate-limit, server, and transport failures are never cached), search results gain [truncated]/[complete] markers with an expand input that reads a result in full from the cached search, and both tools report live vs cached provenance.
+
+### Patch Changes
+
+- 91defde: Resync bundled Ollama Cloud snapshot metadata with the live catalog.
+
 ## 2.0.0
 
 ### Major Changes
