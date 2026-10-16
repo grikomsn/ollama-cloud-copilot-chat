@@ -19,6 +19,7 @@ test("maps published Ollama Cloud rates for hosted model ids", () => {
   assert.deepEqual(ollamaModelCost("gpt-oss:120b"), { input: 0.15, cacheRead: 0.014, output: 0.6 });
   assert.deepEqual(ollamaModelCost("gpt-oss:20b"), { input: 0.07, cacheRead: 0.035, output: 0.3 });
   assert.deepEqual(ollamaModelCost("mistral-large-4"), { input: 0.68, cacheRead: 0.07, output: 2.09 });
+  assert.deepEqual(ollamaModelCost("muse-spark-open"), { input: 1.25, cacheRead: 0.15, output: 4.25 });
 });
 
 test("omits cache pricing where Ollama publishes none", () => {
@@ -33,6 +34,10 @@ test("resolves family rates for unlisted tags and never guesses tag rates", () =
   assert.equal(ollamaModelCost("gpt-oss:70b"), undefined);
   assert.equal(ollamaModelCost("qwen3.5:122b"), undefined);
   assert.equal(ollamaModelCost("kimi-k4"), undefined);
+  // clef publishes only an input rate on the pricing page, so no complete
+  // rate exists to record without guessing an output price.
+  assert.equal(ollamaModelCost("clef"), undefined);
+  assert.equal(ollamaModelCost("clef:27b"), undefined);
   assert.equal(ollamaModelCost("future-model"), undefined);
 });
 
