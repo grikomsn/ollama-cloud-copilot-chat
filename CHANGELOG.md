@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.2
+
+### Patch Changes
+
+- a45d1a2: Add the published Ollama Cloud rate for the muse-spark-open model to the picker.
+
 ## 2.1.1
 
 ### Patch Changes
