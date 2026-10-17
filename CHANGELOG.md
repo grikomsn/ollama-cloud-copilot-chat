@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.3
+
+### Patch Changes
+
+- 8215d1f: Add muse-spark-open and beam to the bundled Ollama Cloud model snapshot; clef:27b stays out of the chat catalog as a decision-only model.
+
 ## 2.1.2
 
 ### Patch Changes
