@@ -45,6 +45,16 @@ const MINIMAX_M3_PROFILE: ThinkingProfile = {
   defaultValue: "high",
   title: "Thinking Effort",
 };
+const MUSE_SPARK_PROFILE: ThinkingProfile = {
+  values: ["off", "low", "medium", "high", "max"],
+  defaultValue: "high",
+  title: "Thinking Effort",
+};
+const BEAM_PROFILE: ThinkingProfile = {
+  values: ["low", "medium", "high", "max"],
+  defaultValue: "high",
+  title: "Thinking Effort",
+};
 
 /**
  * Resolves a thinking profile for ids Ollama Cloud has not snapshotted yet.
@@ -64,6 +74,8 @@ function thinkingProfile(id: string): ThinkingProfile | undefined {
   if (family === "glm-5.2") return GLM_52_PROFILE;
   if (family === "kimi-k3") return KIMI_K3_PROFILE;
   if (family === "minimax-m3") return MINIMAX_M3_PROFILE;
+  if (family === "muse-spark-open") return MUSE_SPARK_PROFILE;
+  if (family === "beam") return BEAM_PROFILE;
   if (family === "mistral-large-4") return BOOLEAN_PROFILE;
   if (
     family === "gemma4" || family === "kimi-k2.6" || family === "kimi-k2.7-code"
@@ -85,6 +97,8 @@ const THINKING_PROFILES = new Map<string, ThinkingProfile>([
   ["kimi-k2.7-code", BOOLEAN_PROFILE],
   ["kimi-k3", KIMI_K3_PROFILE],
   ["minimax-m3", MINIMAX_M3_PROFILE],
+  ["muse-spark-open", MUSE_SPARK_PROFILE],
+  ["beam", BEAM_PROFILE],
   ["mistral-large-4", BOOLEAN_PROFILE],
   ["nemotron-3-nano:30b", BOOLEAN_PROFILE],
   ["nemotron-3-super", BOOLEAN_PROFILE],
@@ -96,7 +110,7 @@ const THINKING_PROFILES = new Map<string, ThinkingProfile>([
  * live probes (mirroring pi-ollama-cloud's OFF_NULL table): derived profiles
  * hide the `off` choice for these families/ids so the model stays model-managed.
  */
-const OFF_NULL_EXACT = new Set(["minimax-m2.7"]);
+const OFF_NULL_EXACT = new Set(["minimax-m2.7", "beam"]);
 const OFF_NULL_FAMILIES = ["gpt-oss"];
 
 function hidesOff(id: string): boolean {
