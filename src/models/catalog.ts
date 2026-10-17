@@ -75,6 +75,10 @@ const SNAPSHOT: readonly SnapshotModel[] = [
   { id: "glm-5.3", contextLength: 1048576, maxOutputTokens: 524288, capabilities: "thinking completion tools" },
   { id: "glm-5.3-flash", contextLength: 1048576, maxOutputTokens: 524288, capabilities: "vision thinking completion tools" },
   { id: "deepseek-v4.1-flash", contextLength: 1048576, maxOutputTokens: 393216, capabilities: "vision thinking completion tools" },
+  // deepseek-v4.1-flash:1017 is the 2026-10-17 tagged retrain. It has no
+  // models.dev entry yet; context comes from /api/show and the output
+  // ceiling from a live limit-probe rejection (matches the base row).
+  { id: "deepseek-v4.1-flash:1017", contextLength: 1048576, maxOutputTokens: 393216, capabilities: "vision thinking completion tools" },
   { id: "kimi-k3", contextLength: 1048576, maxOutputTokens: 524288, capabilities: "vision thinking completion tools" },
   { id: "kimi-k2.7-code", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
   { id: "kimi-k2.6", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
