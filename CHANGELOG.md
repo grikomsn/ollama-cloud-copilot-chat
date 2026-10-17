@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.4
+
+### Patch Changes
+
+- af084ec: Add deepseek-v4.1-flash:1017 to the bundled Ollama Cloud model snapshot with probed ceilings and verified thinking profile.
+
 ## 2.1.3
 
 ### Patch Changes
