@@ -16,6 +16,7 @@ function model(id: string, family: string, thinking = true): CloudModel {
 }
 
 const EXPECTED_PROFILES = new Map<string, readonly string[]>([
+  ["beam", ["low", "medium", "high", "max"]],
   ["deepseek-v4.1-flash", ["off", "high", "max"]],
   ["deepseek-v4-pro:0813", ["off", "high", "max"]],
   ["gemma4:31b", ["off", "on"]],
@@ -28,6 +29,7 @@ const EXPECTED_PROFILES = new Map<string, readonly string[]>([
   ["kimi-k2.7-code", ["off", "on"]],
   ["kimi-k3", ["off", "low", "high", "max"]],
   ["minimax-m3", ["default", "low", "medium", "high", "max"]],
+  ["muse-spark-open", ["off", "low", "medium", "high", "max"]],
   ["mistral-large-4", ["off", "on"]],
   ["nemotron-3-nano:30b", ["off", "on"]],
   ["nemotron-3-super", ["off", "on"]],
@@ -93,6 +95,8 @@ test("unlisted tags inherit their family's verified profile", () => {
     ["minimax-m3:future", ["default", "low", "medium", "high", "max"]],
     ["gemma4:9b", ["off", "on"]],
     ["nemotron-3-nano:future", ["off", "on"]],
+    ["muse-spark-open:future", ["off", "low", "medium", "high", "max"]],
+    ["beam:future", ["low", "medium", "high", "max"]],
   ] as const) {
     assert.deepEqual(buildThinkingSchema(model(id, id))?.properties.reasoningEffort.enum, [...values], id);
   }

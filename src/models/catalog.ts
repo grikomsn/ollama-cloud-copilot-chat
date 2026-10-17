@@ -64,6 +64,14 @@ export type Fetch = (input: string | URL | Request, init?: RequestInit) => Promi
 // This snapshot keeps the picker useful before authentication and records
 // output ceilings that /api/show does not currently publish.
 const SNAPSHOT: readonly SnapshotModel[] = [
+  // muse-spark-open published pricing (2026-10-16) but no snapshot row; the
+  // context comes from /api/show and models.dev. The output ceiling accepted
+  // the top probe tier, matching the other 1M-context models.
+  { id: "muse-spark-open", contextLength: 1048576, maxOutputTokens: 524288, capabilities: "vision thinking completion tools" },
+  // beam is Reflection's open agentic/coding model. It has no models.dev
+  // entry yet; the context comes from /api/show and the output ceiling from
+  // a live limit probe (it rejects above 131072).
+  { id: "beam", contextLength: 1048576, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
   { id: "glm-5.3", contextLength: 1048576, maxOutputTokens: 524288, capabilities: "thinking completion tools" },
   { id: "glm-5.3-flash", contextLength: 1048576, maxOutputTokens: 524288, capabilities: "vision thinking completion tools" },
   { id: "deepseek-v4.1-flash", contextLength: 1048576, maxOutputTokens: 393216, capabilities: "vision thinking completion tools" },
@@ -317,6 +325,7 @@ function inferFamily(id: string): string {
   if (id.startsWith("gemma")) return "gemma";
   if (id.startsWith("kimi")) return "kimi";
   if (id.startsWith("glm")) return "glm";
+  if (id.startsWith("muse")) return "muse-spark";
   return id.split(/[-:]/)[0] || "ollama-cloud";
 }
 
