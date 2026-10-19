@@ -73,7 +73,7 @@ function thinkingProfile(id: string): ThinkingProfile | undefined {
   if (family === "glm-5.3" || family === "glm-5.3-flash") return GLM_53_PROFILE;
   if (family === "glm-5.2") return GLM_52_PROFILE;
   if (family === "kimi-k3") return KIMI_K3_PROFILE;
-  if (family === "minimax-m3") return MINIMAX_M3_PROFILE;
+  if (family === "minimax-m3" || family === "minimax-m3.1-flash") return MINIMAX_M3_PROFILE;
   if (family === "muse-spark-open") return MUSE_SPARK_PROFILE;
   if (family === "beam") return BEAM_PROFILE;
   if (family === "mistral-large-4") return BOOLEAN_PROFILE;
@@ -97,6 +97,7 @@ const THINKING_PROFILES = new Map<string, ThinkingProfile>([
   ["kimi-k2.7-code", BOOLEAN_PROFILE],
   ["kimi-k3", KIMI_K3_PROFILE],
   ["minimax-m3", MINIMAX_M3_PROFILE],
+  ["minimax-m3.1-flash", MINIMAX_M3_PROFILE],
   ["muse-spark-open", MUSE_SPARK_PROFILE],
   ["beam", BEAM_PROFILE],
   ["mistral-large-4", BOOLEAN_PROFILE],

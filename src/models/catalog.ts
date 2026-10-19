@@ -64,6 +64,11 @@ export type Fetch = (input: string | URL | Request, init?: RequestInit) => Promi
 // This snapshot keeps the picker useful before authentication and records
 // output ceilings that /api/show does not currently publish.
 const SNAPSHOT: readonly SnapshotModel[] = [
+  // minimax-m3.1-flash is the newly hosted M3.1-generation flash variant.
+  // The context matches live /api/show and models.dev; the output ceiling
+  // comes from models.dev, and /api/show plus a live chat probe verified
+  // the thinking, vision, and tool capabilities.
+  { id: "minimax-m3.1-flash", contextLength: 1000000, maxOutputTokens: 512000, capabilities: "vision thinking completion tools" },
   // muse-spark-open published pricing (2026-10-16) but no snapshot row; the
   // context comes from /api/show and models.dev. The output ceiling accepted
   // the top probe tier, matching the other 1M-context models.
