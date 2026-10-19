@@ -23,11 +23,19 @@ class MemoryCache implements CatalogCache {
 
 test("fallback catalog includes current cloud models and rich capabilities", () => {
   const models = fallbackModels();
-  assert.equal(models.length, 21);
+  assert.equal(models.length, 22);
   const muse = models.find((model) => model.id === "muse-spark-open");
   assert.equal(muse?.contextLength, 1048576);
   assert.equal(muse?.maxOutputTokens, 524288);
   assert.deepEqual(muse?.capabilities, {
+    imageInput: true,
+    toolCalling: true,
+    thinking: true,
+  });
+  const minimax31 = models.find((model) => model.id === "minimax-m3.1-flash");
+  assert.equal(minimax31?.contextLength, 1000000);
+  assert.equal(minimax31?.maxOutputTokens, 512000);
+  assert.deepEqual(minimax31?.capabilities, {
     imageInput: true,
     toolCalling: true,
     thinking: true,
@@ -66,6 +74,9 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
   });
   assert.equal(models.some((model) => model.id === "kimi-k2.5"), false);
   assert.equal(models.some((model) => model.id === "minimax-m2.5"), false);
+  // clef:27b stays unlisted: it is a decision model that only serves the
+  // /v1/systemone endpoint, so /api/chat requests receive HTTP 400.
+  assert.equal(models.some((model) => model.id === "clef:27b"), false);
   assert.equal(models.some((model) => model.id === "deepseek-v4-flash:preview"), false);
   assert.equal(models.some((model) => model.id === "deepseek-v4-flash"), false);
   assert.equal(models.some((model) => model.id === "deepseek-v4-flash:0731"), false);
@@ -387,6 +398,7 @@ test("formats model identifiers for the picker", () => {
   assert.equal(humanizeModelId("deepseek-v4-flash:preview"), "DeepSeek V4 Flash Preview");
   assert.equal(humanizeModelId("gemma4:31b"), "Gemma 4 31B");
   assert.equal(humanizeModelId("qwen3.5:397b"), "Qwen 3.5 397B");
+  assert.equal(humanizeModelId("minimax-m3.1-flash"), "MiniMax M3.1 Flash");
 });
 
 test("uses the declared architecture instead of the first context field", () => {

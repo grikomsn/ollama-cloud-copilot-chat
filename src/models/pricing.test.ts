@@ -13,6 +13,7 @@ test("maps published Ollama Cloud rates for hosted model ids", () => {
   assert.deepEqual(ollamaModelCost("kimi-k2.7-code"), { input: 0.95, cacheRead: 0.19, output: 4 });
   assert.deepEqual(ollamaModelCost("kimi-k2.6"), { input: 0.95, cacheRead: 0.16, output: 4 });
   assert.deepEqual(ollamaModelCost("minimax-m3"), { input: 0.6, cacheRead: 0.12, output: 2.4 });
+  assert.deepEqual(ollamaModelCost("minimax-m3.1-flash"), { input: 0.15, cacheRead: 0.015, output: 0.6 });
   assert.deepEqual(ollamaModelCost("minimax-m2.7"), { input: 0.3, cacheRead: 0.06, output: 1.2 });
   assert.deepEqual(ollamaModelCost("nemotron-3-super"), { input: 0.015, cacheRead: 0.015, output: 0.6 });
   assert.deepEqual(ollamaModelCost("nemotron-3-ultra"), { input: 0.1, cacheRead: 0.1, output: 3 });
