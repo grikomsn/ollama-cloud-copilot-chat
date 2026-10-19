@@ -9,6 +9,7 @@ local Ollama installation.
 - `src/extension.ts`: activation, commands, connection UI, and diagnostics
 - `src/provider.ts`: VS Code provider integration and native Ollama chat requests
 - `src/catalog.ts`: cloud model discovery, `/api/show` hydration, and fallback metadata
+  - `CATALOG_CACHE_KEY` in `src/models/catalog.ts` keys persisted per-credential caches. Bump its version (and update the comment above it) when ids retire or delist from the hosted catalog so stale caches do not keep serving removed entries; additions alone do not require a bump.
 - `src/convert.ts`: VS Code message/tool conversion
 - `src/model-options.ts`: model-picker thinking controls
 - `src/models/metadata.ts`: persisted models.dev enrichment for fields omitted by Ollama discovery
