@@ -40,6 +40,8 @@ Management commands and inline suggestions use the active key (the most recently
 
 Images returned by tools are sent as native image attachments after the corresponding tool results; their base64 bytes are never inserted into prompt text. Context token counts remain estimates. If a request exceeds the context window, run `/compact` in Copilot Chat, reduce attachments or tool output, or start a new chat.
 
+Tool calls must match the current request's advertised tools. Whitespace and a `functions.` namespace are repaired only when they resolve to an exact advertised name. A rejected call prevents the whole batch from being forwarded; its error includes structural diagnostics without exposing tool names or arguments.
+
 ## Documentation
 
 - [Setup, commands, settings, and troubleshooting](https://github.com/grikomsn/ollama-cloud-copilot-chat/blob/main/docs/setup.md)

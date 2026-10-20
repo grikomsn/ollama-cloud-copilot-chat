@@ -53,3 +53,13 @@ test("includes tool schemas in the context overflow check", () => {
     undefined, false, 20, 4,
   ), /input exceeds its context window/);
 });
+
+test("reminds automatic tool selection to use only the current advertised tool list", () => {
+  const plan = buildChatRequestPlan(
+    { ...model, contextLength: 1000 }, [{ role: "user", content: "hello" }],
+    [{ type: "function", function: { name: "lookup", parameters: {} } }],
+    undefined, false, 20, 4,
+  );
+  assert.match(plan.body.messages[0].content, /only tools listed for this request/);
+  assert.equal(plan.requiresToolCall, false);
+});

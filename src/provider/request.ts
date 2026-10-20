@@ -5,6 +5,7 @@ import { estimateInputTokens } from "./token-estimate";
 import type { OllamaMessage, OllamaTool } from "./messages";
 
 const REQUIRED_TOOL_INSTRUCTION = "You must call at least one of the provided tools before answering. Do not answer directly.";
+const TOOL_NAME_INSTRUCTION = "Call only tools listed for this request, using their exact names. Tools mentioned in earlier turns may be unavailable.";
 
 export interface ChatRequestPlan {
   readonly body: {
@@ -32,8 +33,11 @@ export function buildChatRequestPlan(
 ): ChatRequestPlan {
   const requestMessages = [...messages];
   const requiresToolCall = tools.length > 0 && toolRequired;
-  if (requiresToolCall) {
-    requestMessages.unshift({ role: "system", content: REQUIRED_TOOL_INSTRUCTION });
+  if (tools.length) {
+    requestMessages.unshift({
+      role: "system",
+      content: requiresToolCall ? `${TOOL_NAME_INSTRUCTION}\n${REQUIRED_TOOL_INSTRUCTION}` : TOOL_NAME_INSTRUCTION,
+    });
   }
   const promptMetrics = ollamaPromptMetrics(requestMessages, tools);
   const calibrationChars = promptMetrics.imageCount === 0 ? promptMetrics.textChars : 0;
