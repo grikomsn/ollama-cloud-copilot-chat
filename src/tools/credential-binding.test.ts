@@ -98,3 +98,13 @@ test("Harmony name repair preserves the request-bound web-search capability", ()
   });
   assert.throws(() => bound.routeToolCall("ollama-cloud_web-search__other<|channel|>commentary", {}), /not advertised/);
 });
+
+test("namespace repair preserves the advertised credential alias and rejects other capabilities", () => {
+  const bound = bindCredentialToTools([{ type: "function", function: { name: "ollama-cloud_web-search", parameters: {} } }], "current-capability");
+  const name = bound.tools[0].function.name;
+  assert.deepEqual(bound.routeToolCall(`functions.${name}`, { credential_capability: "other" }), {
+    name: "ollama-cloud_web-search", input: { credential_capability: "current-capability" },
+  });
+  assert.throws(() => bound.routeToolCall("functions.ollama-cloud_web-search__other", {}), /not advertised/);
+  assert.throws(() => bound.routeToolCall("functions.ollama-cloud_web-search", {}), /not advertised/);
+});

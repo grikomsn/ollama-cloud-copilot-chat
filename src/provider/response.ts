@@ -20,14 +20,18 @@ export function reportResponseEvent(
 ): void {
   observeResponseUsage(event, usageState);
   const transition = observeResponseEvent(model.id, event, state);
+  // Validate the entire batch before forwarding any call or other event output.
+  const routedTools = (event.toolCalls ?? []).map((tool) => ({
+    tool,
+    routed: routeToolCall(tool.function.name, tool.function.arguments),
+  }));
   if (event.thinking) {
     const ThinkingPart = thinkingPartConstructor();
     if (ThinkingPart) progress.report(new ThinkingPart(event.thinking));
   }
   if (transition.closeThinking) closeThinking(progress, state);
   if (event.text) progress.report(new vscode.LanguageModelTextPart(event.text));
-  for (const tool of event.toolCalls ?? []) {
-    const routed = routeToolCall(tool.function.name, tool.function.arguments);
+  for (const { tool, routed } of routedTools) {
     progress.report(new vscode.LanguageModelToolCallPart(
       toolCallId(tool.id, state),
       routed.name,
