@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.7
+
+### Patch Changes
+
+- 5a6447a: Keep tool-result images in native image fields instead of serializing base64 into prompt text, reject oversized requests before sending, and explain how to recover from context-window errors.
+- eac2cfe: Repair whitespace and functions-namespace formatting only against advertised tool names, remind models to use the current tool list, and validate complete tool-call batches before forwarding them. Keep credential aliases scoped to the current request and report rejected-name structure without exposing tool names.
+
 ## 2.1.6
 
 ### Patch Changes
