@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { randomUUID } from "node:crypto";
+import { withContextOverflowHint } from "./provider/context-error";
 import { apiKeyFromConfiguration, credentialReference, NativeEntries } from "./auth/auth";
 import {
   CATALOG_CACHE_KEY,
@@ -238,7 +239,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
       resolveContextSize(options.modelConfiguration),
       Math.max(1, model.contextLength - Math.min(model.maxOutputTokens, Math.max(1, configuredMaxOutputTokens))),
     );
-    const convertedMessages = boundTools.bindMessages(convertMessages(messages));
+    const convertedMessages = boundTools.bindMessages(convertMessages(messages, model.capabilities.imageInput));
     const request = buildChatRequestPlan(
       model,
       contextCap === undefined ? convertedMessages : [...trimHistoryToFit(convertedMessages, contextCap).items],
@@ -327,7 +328,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
           ? `Ollama Cloud request for ${model.id} received no data for ${idleTimeoutSeconds} seconds`
           : `Ollama Cloud request for ${model.id} exceeded ${timeoutSeconds} seconds`);
       }
-      throw error;
+      throw withContextOverflowHint(error);
     } finally {
       closeThinking(progress, streamState);
       clearTimeout(totalTimeout);

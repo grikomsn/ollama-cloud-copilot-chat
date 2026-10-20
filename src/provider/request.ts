@@ -38,7 +38,10 @@ export function buildChatRequestPlan(
   const promptMetrics = ollamaPromptMetrics(requestMessages, tools);
   const calibrationChars = promptMetrics.imageCount === 0 ? promptMetrics.textChars : 0;
   const estimatedInputTokens = Math.max(1, estimateInputTokens(promptMetrics, charsPerToken));
-  const remainingContextTokens = Math.max(1, model.contextLength - estimatedInputTokens);
+  if (estimatedInputTokens >= model.contextLength) {
+    throw new Error(`${model.id} input exceeds its context window. Run /compact in Copilot Chat, reduce attachments or tool output, or start a new chat.`);
+  }
+  const remainingContextTokens = model.contextLength - estimatedInputTokens;
   const maxOutputTokens = Math.min(
     model.maxOutputTokens,
     remainingContextTokens,

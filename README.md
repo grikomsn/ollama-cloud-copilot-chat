@@ -38,6 +38,8 @@ Composer controls override workspace defaults; ordered thinking controls default
 
 Management commands and inline suggestions use the active key (the most recently provisioned entry in Manage Language Models).
 
+Images returned by tools are sent as native image attachments after the corresponding tool results; their base64 bytes are never inserted into prompt text. Context token counts remain estimates. If a request exceeds the context window, run `/compact` in Copilot Chat, reduce attachments or tool output, or start a new chat.
+
 ## Documentation
 
 - [Setup, commands, settings, and troubleshooting](https://github.com/grikomsn/ollama-cloud-copilot-chat/blob/main/docs/setup.md)

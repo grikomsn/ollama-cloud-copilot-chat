@@ -35,6 +35,7 @@ export interface MessageMetrics {
 
 export function convertMessages(
   messages: readonly vscode.LanguageModelChatRequestMessage[],
+  imageInput = true,
 ): OllamaMessage[] {
   const toolNames = new Map<string, string>();
   for (const message of messages) {
@@ -44,7 +45,26 @@ export function convertMessages(
       }
     }
   }
-  return messages.flatMap((message) => convertMessage(message, toolNames));
+  const converted: OllamaMessage[] = [];
+  const pendingCalls = new Set<string>();
+  const pendingImages: string[] = [];
+  const flushImages = (): void => {
+    if (!pendingImages.length) return;
+    converted.push({ role: "user", content: "Images returned by the tools above.", images: pendingImages.splice(0) });
+  };
+  for (const message of messages) {
+    for (const part of message.content) {
+      if (part instanceof vscode.LanguageModelToolCallPart) pendingCalls.add(part.callId);
+      else if (part instanceof vscode.LanguageModelToolResultPart) pendingCalls.delete(part.callId);
+    }
+    const result = convertMessage(message, toolNames, imageInput);
+    converted.push(...result.messages);
+    pendingImages.push(...result.toolImages);
+    // Parallel results may arrive in separate VS Code messages.
+    if (!pendingCalls.size) flushImages();
+  }
+  flushImages();
+  return converted;
 }
 
 export function convertTools(
@@ -76,12 +96,14 @@ export function messageMetrics(
 function convertMessage(
   message: vscode.LanguageModelChatRequestMessage,
   toolNames: ReadonlyMap<string, string>,
-): OllamaMessage[] {
+  imageInput: boolean,
+): { messages: OllamaMessage[]; toolImages: readonly string[] } {
   const text: string[] = [];
   const thinking: string[] = [];
   const images: string[] = [];
   const toolCalls: OllamaRequestToolCall[] = [];
   const toolResults: OllamaMessage[] = [];
+  const toolImages: string[] = [];
 
   for (const part of message.content) {
     if (part instanceof vscode.LanguageModelTextPart) {
@@ -112,7 +134,13 @@ function convertMessage(
       }
       toolResults.push({
         role: "tool",
-        content: part.content.map(partText).filter(Boolean).join("\n"),
+        content: part.content.map((resultPart) => {
+          if (resultPart instanceof vscode.LanguageModelDataPart && resultPart.mimeType.startsWith("image/")) {
+            if (imageInput) toolImages.push(Buffer.from(resultPart.data).toString("base64"));
+            return `[${resultPart.mimeType} image ${imageInput ? "attached below" : "omitted: model is text-only"}]`;
+          }
+          return partText(resultPart);
+        }).filter(Boolean).join("\n"),
         tool_name: toolName,
       });
     }
@@ -128,7 +156,7 @@ function convertMessage(
       ...(toolCalls.length ? { tool_calls: toolCalls } : {}),
     });
   }
-  return [...main, ...toolResults];
+  return { messages: [...toolResults, ...main], toolImages };
 }
 
 function role(value: vscode.LanguageModelChatMessageRole): OllamaMessage["role"] {
@@ -144,7 +172,7 @@ function partText(part: vscode.LanguageModelInputPart | unknown): string {
   if (isThinkingPart(part)) return Array.isArray(part.value) ? part.value.join("\n") : part.value;
   if (part instanceof vscode.LanguageModelDataPart) {
     if (part.mimeType.startsWith("text/")) return new TextDecoder().decode(part.data);
-    if (part.mimeType.startsWith("image/")) return Buffer.from(part.data).toString("base64");
+    if (part.mimeType.startsWith("image/")) return `[${part.mimeType} image omitted]`;
   }
   if (part instanceof vscode.LanguageModelToolCallPart) {
     return `${part.name}\n${JSON.stringify(part.input ?? {})}`;
