@@ -39,3 +39,17 @@ test("adds the required-tool instruction only when client tools are available", 
   assert.deepEqual(plan.body.tools, [tool]);
   assert.ok(plan.maxOutputTokens < model.contextLength);
 });
+
+test("rejects oversized input instead of sending it with a one-token output allowance", () => {
+  assert.throws(() => buildChatRequestPlan(
+    model, [{ role: "user", content: "x".repeat(400) }], [], undefined, false, 20, 4,
+  ), /input exceeds its context window.*\/compact/);
+});
+
+test("includes tool schemas in the context overflow check", () => {
+  assert.throws(() => buildChatRequestPlan(
+    model, [{ role: "user", content: "hello" }],
+    [{ type: "function", function: { name: "lookup", description: "x".repeat(400), parameters: {} } }],
+    undefined, false, 20, 4,
+  ), /input exceeds its context window/);
+});
