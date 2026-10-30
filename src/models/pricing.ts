@@ -1,5 +1,5 @@
 // Published Ollama Cloud rates from https://ollama.com/pricing, captured
-// 2026-10-20. The API does not expose pricing, so this table mirrors the
+// 2026-10-30. The API does not expose pricing, so this table mirrors the
 // pricing page: family rows cover unlisted tags, while tag-specific rows
 // (gpt-oss) apply only to the listed tags. DeepSeek V4 Pro and DeepSeek
 // V4.1 Flash publish off-peak rates as labeled rows, applying outside
@@ -39,7 +39,7 @@ export const PUBLISHED_MODEL_COSTS: Readonly<Record<string, ModelCost>> = {
   "minimax-m3.1-flash": { input: 0.15, cacheRead: 0.015, output: 0.6 },
   "muse-spark-open": { input: 1.25, cacheRead: 0.15, output: 4.25 },
   "mistral-large-3": { input: 0.5, output: 1.5 },
-  "mistral-large-4": { input: 0.68, cacheRead: 0.07, output: 2.09 },
+  "mistral-large-4": { input: 0.7, cacheRead: 0.07, output: 2.1 },
   "nemotron-3-nano": { input: 0.06, output: 0.24 },
   "nemotron-3-super": { input: 0.015, cacheRead: 0.015, output: 0.6 },
   "nemotron-3-ultra": { input: 0.1, cacheRead: 0.1, output: 3 },
