@@ -129,6 +129,15 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
   });
 });
 
+test("announces the 2026-11-09 retirement on still-hosted models", () => {
+  for (const id of ["minimax-m2.7", "mistral-large-3:675b", "nemotron-3-nano:30b"]) {
+    const model = fallbackModels().find((entry) => entry.id === id);
+    assert.equal(model?.retirementDate, "2026-11-09", id);
+  }
+  // Everything else stays unmarked.
+  assert.equal(fallbackModels().find((entry) => entry.id === "mistral-large-4")?.retirementDate, undefined);
+});
+
 test("ignores v1 cached retired models when a catalog refresh fails", async () => {
   const cache = new MemoryCache();
   cache.values.set("ollamaCloudCopilot.modelCatalog.v1.account", [{

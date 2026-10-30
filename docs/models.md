@@ -6,7 +6,7 @@ The extension discovers the catalog available to the configured account and enri
 
 Authenticated `/api/tags` and `/api/show` metadata remains authoritative. Fields those endpoints omit are enriched from the canonical `ollama-cloud` provider in a six-hour models.dev snapshot stored in VS Code `globalState`. Stale metadata is returned immediately while refresh runs and remains available during models.dev outages.
 
-The fallback snapshot was last updated on 2026-10-20:
+The fallback snapshot was last updated on 2026-10-30:
 
 | Model | Context | Images | Tools | Thinking |
 | --- | ---: | :---: | :---: | :---: |
@@ -25,15 +25,15 @@ The fallback snapshot was last updated on 2026-10-20:
 | Nemotron 3 Ultra | 262K | No | Yes | On / Off |
 | DeepSeek V4 Pro 0813 | 1.049M | No | Yes | Off / High / Max |
 | Gemma 4 31B | 262K | Yes | Yes | On / Off |
-| MiniMax M2.7 | 197K | No | Yes | Model-managed |
+| MiniMax M2.7 (retires 2026-11-09) | 197K | No | Yes | Model-managed |
 | Nemotron 3 Super | 262K | No | Yes | On / Off |
-| Nemotron 3 Nano 30B | 262K | No | Yes | On / Off |
+| Nemotron 3 Nano 30B (retires 2026-11-09) | 262K | No | Yes | On / Off |
 | Mistral Large 4 | 1.049M | Yes | Yes | On / Off |
-| Mistral Large 3 675B | 262K | Yes | Yes | No |
+| Mistral Large 3 675B (retires 2026-11-09) | 262K | Yes | Yes | No |
 | GPT-OSS 120B | 131K | No | Yes | Low / Medium / High |
 | GPT-OSS 20B | 131K | No | Yes | Low / Medium / High |
 
-Live catalog and `/api/show` results remain authoritative when they differ from this snapshot. Kimi K2.5 and MiniMax M2.5 were removed after their 2026-07-31 retirement. DeepSeek V4 Flash 0731, GLM 5.1, and Qwen 3.5 397B were removed ahead of their 2026-09-25 retirement; the recommended replacements are DeepSeek V4.1 Flash for DeepSeek, GLM 5.3 for GLM, and GLM 5.3 Flash or DeepSeek V4.1 Flash for Qwen. The untagged `deepseek-v4-pro` and `deepseek-v4-flash` aliases also remain absent because they no longer appear in `/api/tags`. GLM 5.2, GLM 5.3 Flash, and Nemotron 3 Nano context windows reflect live `/api/show` values. Muse Spark Open, Beam, the tagged 2026-10-17 DeepSeek V4.1 Flash retrain, and MiniMax M3.1 Flash joined the snapshot from live `/api/show` results; models.dev publishes the M3.1 Flash output ceiling. The hosted `clef` route stays unlisted because it is a decision model whose chat requests return `400`: it only supports the `/v1/systemone` endpoint. See [Cloud model retirements](https://docs.ollama.com/cloud#retirements).
+Live catalog and `/api/show` results remain authoritative when they differ from this snapshot. Kimi K2.5 and MiniMax M2.5 were removed after their 2026-07-31 retirement. DeepSeek V4 Flash 0731, GLM 5.1, and Qwen 3.5 397B were removed ahead of their 2026-09-25 retirement; the recommended replacements are DeepSeek V4.1 Flash for DeepSeek, GLM 5.3 for GLM, and GLM 5.3 Flash or DeepSeek V4.1 Flash for Qwen. The untagged `deepseek-v4-pro` and `deepseek-v4-flash` aliases also remain absent because they no longer appear in `/api/tags`. GLM 5.2, GLM 5.3 Flash, and Nemotron 3 Nano context windows reflect live `/api/show` values. Muse Spark Open, Beam, the tagged 2026-10-17 DeepSeek V4.1 Flash retrain, and MiniMax M3.1 Flash joined the snapshot from live `/api/show` results; models.dev publishes the M3.1 Flash output ceiling. The hosted `clef` route stays unlisted because it is a decision model whose chat requests return `400`: it only supports the `/v1/systemone` endpoint. MiniMax M2.7, Mistral Large 3 675B, and Nemotron 3 Nano 30B retire on 2026-11-09 (see [Cloud model retirements](https://docs.ollama.com/cloud#retirements)); they still serve until then, so the picker keeps them selectable and each entry's tooltip announces the retirement date.
 
 Kimi K3 currently requires an Ollama Pro or Max subscription and consumes extra usage credits. See [Kimi K3 on Ollama](https://ollama.com/library/kimi-k3).
 

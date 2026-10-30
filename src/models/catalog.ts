@@ -92,11 +92,14 @@ const SNAPSHOT: readonly SnapshotModel[] = [
   { id: "nemotron-3-ultra", contextLength: 262144, maxOutputTokens: 65536, capabilities: "thinking completion tools" },
   { id: "deepseek-v4-pro:0813", contextLength: 1048576, maxOutputTokens: 65536, capabilities: "thinking completion tools" },
   { id: "gemma4:31b", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
-  { id: "minimax-m2.7", contextLength: 196608, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
+  // minimax-m2.7, mistral-large-3:675b, and nemotron-3-nano:30b retire on
+  // 2026-11-09 per Ollama's usage settings; they still serve until then, so
+  // they stay listed and the picker tooltip announces the retirement.
+  { id: "minimax-m2.7", contextLength: 196608, maxOutputTokens: 131072, capabilities: "thinking completion tools", retirementDate: "2026-11-09" },
   { id: "nemotron-3-super", contextLength: 262144, maxOutputTokens: 65536, capabilities: "thinking completion tools" },
-  { id: "nemotron-3-nano:30b", contextLength: 262144, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
+  { id: "nemotron-3-nano:30b", contextLength: 262144, maxOutputTokens: 131072, capabilities: "thinking completion tools", retirementDate: "2026-11-09" },
   { id: "mistral-large-4", contextLength: 1048576, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
-  { id: "mistral-large-3:675b", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision completion tools" },
+  { id: "mistral-large-3:675b", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision completion tools", retirementDate: "2026-11-09" },
   { id: "gpt-oss:120b", contextLength: 131072, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
   { id: "gpt-oss:20b", contextLength: 131072, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
 ];
