@@ -66,7 +66,7 @@ Ollama publishes input, cached-input, and output rates per million tokens for ev
 | MiniMax M3 | 0.60 | 0.12 | 2.40 |
 | MiniMax M3.1 Flash | 0.15 | 0.015 | 0.60 |
 | Mistral Large 3 | 0.50 | — | 1.50 |
-| Mistral Large 4 | 0.68 | 0.07 | 2.09 |
+| Mistral Large 4 | 0.70 | 0.07 | 2.10 |
 | Muse Spark Open | 1.25 | 0.15 | 4.25 |
 | Nemotron 3 Nano | 0.06 | — | 0.24 |
 | Nemotron 3 Super | 0.015 | 0.015 | 0.60 |
