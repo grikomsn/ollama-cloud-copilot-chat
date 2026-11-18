@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const vscode = require("vscode");
-const { NativeEntries } = require("../../out/auth/auth");
+const { Credentials } = require("../../out/kit/credentials");
 const { OllamaCloudProvider } = require("../../out/provider");
 const { OLLAMA_WEB_SEARCH_TOOL_NAME } = require("../../out/tools/registered/web-search");
 
@@ -26,7 +26,7 @@ async function run() {
   try {
     const values = new Map();
     const cache = { get: (key) => values.get(key), update: async (key, value) => { values.set(key, value); } };
-    const entries = new NativeEntries();
+    const entries = new Credentials();
     const provider = new OllamaCloudProvider(entries, cache, { appendLine() {} }, "native-test");
     const prepare = async (apiKey) => (await provider.provideLanguageModelChatInformation({
       configuration: { apiKey }, silent: true,
@@ -64,7 +64,7 @@ async function run() {
     await provider.provideLanguageModelChatResponse(shared, [], options, { report: (part) => sharedOutput.push(part) }, source.token);
     const sharedCapability = sharedOutput.find((part) => part instanceof vscode.LanguageModelToolCallPart).input.credential_capability;
     assert.equal(await provider.getApiKeyForCapability(sharedCapability), "synthetic-work");
-    assert.equal(new NativeEntries().keyForCredential(work.credentialRef), undefined);
+    assert.equal(new Credentials().keyForCredential(work.credentialRef), undefined);
   } finally { globalThis.fetch = fetcher; source.dispose(); }
   console.log(JSON.stringify({ provider: "ollama", nativeChecks: "parallel tools, reasoning closure, two entries, bound capabilities, follow-up, active-key selection, raw ids, key-scoped handles", passed: true }));
 }

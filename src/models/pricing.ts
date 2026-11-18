@@ -1,3 +1,7 @@
+import type { ModelCost } from "../kit/pricing";
+
+export type { ModelCost } from "../kit/pricing";
+
 // Published Ollama Cloud rates from https://ollama.com/pricing, captured
 // 2026-10-30. The API does not expose pricing, so this table mirrors the
 // pricing page: family rows cover unlisted tags, while tag-specific rows
@@ -8,19 +12,6 @@
 // rate, exactly double. clef is intentionally absent: the page publishes
 // only an input rate and no output rate, which cannot be represented
 // without guessing.
-export interface ModelCost {
-  readonly input: number;
-  readonly output: number;
-  readonly cacheRead?: number;
-}
-
-export interface ModelPricingFields {
-  readonly pricing: string;
-  readonly inputCost: number;
-  readonly outputCost: number;
-  readonly cacheCost?: number;
-  readonly priceCategory: "low" | "medium" | "high" | "very_high";
-}
 
 export const PUBLISHED_MODEL_COSTS: Readonly<Record<string, ModelCost>> = {
   "deepseek-v4.1-flash": { input: 0.15, cacheRead: 0.003, output: 0.6 },
@@ -49,35 +40,3 @@ export function ollamaModelCost(id: string): ModelCost | undefined {
   return PUBLISHED_MODEL_COSTS[id] ?? PUBLISHED_MODEL_COSTS[id.split(":")[0]];
 }
 
-export function modelPricingFields(cost: ModelCost | undefined): ModelPricingFields | undefined {
-  if (!cost) return undefined;
-  if (cost.input === 0 && cost.output === 0) {
-    return {
-      pricing: "Free",
-      inputCost: 0,
-      outputCost: 0,
-      ...(cost.cacheRead === undefined ? {} : { cacheCost: 0 }),
-      priceCategory: "low",
-    };
-  }
-  const cached = cost.cacheRead === undefined ? "" : ` · Cached: $${formatPrice(cost.cacheRead)}`;
-  return {
-    pricing: `In: $${formatPrice(cost.input)}${cached} · Out: $${formatPrice(cost.output)} /1M tokens`,
-    inputCost: Math.round(cost.input * 100),
-    outputCost: Math.round(cost.output * 100),
-    ...(cost.cacheRead === undefined ? {} : { cacheCost: Math.round(cost.cacheRead * 100) }),
-    priceCategory: costCategory(cost),
-  };
-}
-
-export function costCategory(cost: Pick<ModelCost, "input" | "output">): ModelPricingFields["priceCategory"] {
-  const weighted = cost.input * 3 + cost.output;
-  if (weighted <= 2) return "low";
-  if (weighted <= 25) return "medium";
-  if (weighted <= 50) return "high";
-  return "very_high";
-}
-
-function formatPrice(value: number): string {
-  return value.toFixed(6).replace(/\.?0+$/, "");
-}

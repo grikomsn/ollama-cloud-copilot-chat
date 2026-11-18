@@ -1,7 +1,12 @@
 import * as vscode from "vscode";
 import { randomUUID } from "node:crypto";
-import { withContextOverflowHint } from "./provider/context-error";
-import { apiKeyFromConfiguration, credentialReference, NativeEntries } from "./auth/auth";
+import { contextSizeOptions, resolveContextCap, resolveContextSize } from "./kit/context-size";
+import { apiKeyFromConfiguration, credentialReference, Credentials } from "./kit/credentials";
+import { httpError, messageOf, withContextOverflowHint } from "./kit/errors";
+import { modelPricingFields } from "./kit/pricing";
+import { fetchWithRetry, gatewayOrRateLimitStatuses } from "./kit/retry";
+import { RequestDeadline } from "./kit/stream";
+import { stringifyWellFormedJson } from "./kit/unicode";
 import {
   CATALOG_CACHE_KEY,
   ModelCatalog,
@@ -10,10 +15,9 @@ import {
   type CloudModel,
 } from "./models/catalog";
 import { convertMessages, messageMetrics } from "./provider/messages";
-import { apiError, messageOf } from "./errors";
-import { buildModelConfigurationSchema, buildThinkingSchema, contextSizeOptions, resolveContextCap, resolveContextSize, resolveThinkValue } from "./models/options";
+import { buildModelConfigurationSchema, buildThinkingSchema, resolveThinkValue } from "./models/options";
 import { trimHistoryToFit } from "./provider/history-trim";
-import { modelPricingFields, ollamaModelCost } from "./models/pricing";
+import { ollamaModelCost } from "./models/pricing";
 import {
   mergeAccountUsage,
   mergeBalanceUsage,
@@ -61,7 +65,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
   readonly onDidChangeUsage = this.usageEmitter.event;
 
   constructor(
-    private readonly entries: NativeEntries,
+    private readonly entries: Credentials,
     cache: CatalogCache,
     private readonly output: vscode.OutputChannel,
     private readonly userAgent: string,
@@ -129,7 +133,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
       const response = await fetch(OLLAMA_ENDPOINTS.usage, {
         headers: ollamaHeaders(apiKey, "application/json", this.userAgent),
       });
-      if (!response.ok) throw await apiError("Unable to load Ollama Cloud subscription usage", response);
+      if (!response.ok) throw await httpError("Unable to load Ollama Cloud subscription usage", response);
       let next = mergeAccountUsage(this.usageFor(credentialRef), await response.json());
       // Additive balance enrichment: a balance failure degrades gracefully
       // and must never fail an otherwise successful refresh.
@@ -250,35 +254,20 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
       this.charsPerToken.get(calibrationKey(information.credentialRef, model.id)) ?? 4,
     );
 
-    const controller = new AbortController();
     const timeoutSeconds = Math.max(10, this.configuration.get("requestTimeoutSeconds", 600));
     const idleTimeoutSeconds = Math.max(10, this.configuration.get("streamIdleTimeoutSeconds", 120));
-    const cancellation = token.onCancellationRequested(() => controller.abort());
-    let timedOut: "total" | "idle" | undefined;
-    const totalTimeout = setTimeout(() => {
-      timedOut = "total";
-      controller.abort();
-    }, timeoutSeconds * 1000);
-    let idleTimeout: ReturnType<typeof setTimeout> | undefined;
-    const resetIdleTimeout = (): void => {
-      if (idleTimeout) clearTimeout(idleTimeout);
-      idleTimeout = setTimeout(() => {
-        timedOut = "idle";
-        controller.abort();
-      }, idleTimeoutSeconds * 1000);
-    };
-    resetIdleTimeout();
-    if (token.isCancellationRequested) controller.abort();
+    const deadline = new RequestDeadline({ totalMs: timeoutSeconds * 1000, idleMs: idleTimeoutSeconds * 1000, cancellation: token });
     const streamState = createResponseStreamState(randomUUID());
     const responseUsageState = createResponseUsageState();
     try {
-      const response = await fetch(OLLAMA_ENDPOINTS.chat, {
+      const body = stringifyWellFormedJson(request.body);
+      const response = await fetchWithRetry(() => fetch(OLLAMA_ENDPOINTS.chat, {
         method: "POST",
         headers: ollamaHeaders(apiKey, "application/x-ndjson", this.userAgent),
-        body: JSON.stringify(request.body),
-        signal: controller.signal,
-      });
-      if (!response.ok) throw await apiError(`Ollama Cloud request failed for ${model.id}`, response);
+        body,
+        signal: deadline.signal,
+      }), { isTransientStatus: gatewayOrRateLimitStatuses, signal: deadline.signal, log: (message) => this.output.appendLine(message) });
+      if (!response.ok) throw await httpError(`Ollama Cloud request failed for ${model.id}`, response);
       if (!response.body) throw new Error("Ollama Cloud returned an empty response stream");
       if (this.debugLogging) {
         this.output.appendLine(
@@ -298,7 +287,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
           this.debugLogging ? (message) => this.output.appendLine(message) : undefined,
           boundTools.routeToolCall,
         ),
-        resetIdleTimeout,
+        () => deadline.touch(),
       );
       if (!completed) return;
       if (streamState.sawDone) {
@@ -323,17 +312,10 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
       this.refreshUsageAfterRequest(information.credentialRef);
     } catch (error) {
       if (token.isCancellationRequested) return;
-      if (timedOut) {
-        throw new Error(timedOut === "idle"
-          ? `Ollama Cloud request for ${model.id} received no data for ${idleTimeoutSeconds} seconds`
-          : `Ollama Cloud request for ${model.id} exceeded ${timeoutSeconds} seconds`);
-      }
-      throw withContextOverflowHint(error);
+      throw deadline.timeoutError(`Ollama Cloud request for ${model.id}`) ?? withContextOverflowHint(error);
     } finally {
       closeThinking(progress, streamState);
-      clearTimeout(totalTimeout);
-      if (idleTimeout) clearTimeout(idleTimeout);
-      cancellation.dispose();
+      deadline.dispose();
     }
   }
 
@@ -384,7 +366,7 @@ implements vscode.LanguageModelChatProvider<OllamaCloudModelInformation> {
         options: { num_predict: 64 },
       }),
     });
-    if (!response.ok) throw await apiError("Ollama Cloud inference test failed", response);
+    if (!response.ok) throw await httpError("Ollama Cloud inference test failed", response);
     const payload = await response.json() as { message?: { content?: unknown } };
     const text = typeof payload.message?.content === "string" ? payload.message.content.trim() : "";
     if (!text) throw new Error("Ollama Cloud inference test returned no text");

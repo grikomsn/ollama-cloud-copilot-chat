@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { CONFIG_SECTION, DEFAULT_INLINE_MODEL, INLINE_SUGGESTIONS_MODEL_SETTING } from "../autocomplete/config";
 import { inlineModelChoices } from "../autocomplete/models";
-import { messageOf } from "../errors";
+import { messageOf } from "../kit/errors";
 import { OllamaCloudProvider } from "../provider";
 import { OLLAMA_CLOUD_API, OLLAMA_CLOUD_ORIGIN } from "../transport/protocol";
 import {

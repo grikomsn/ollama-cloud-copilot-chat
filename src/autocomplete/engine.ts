@@ -7,8 +7,9 @@
  * can never leak chain-of-thought into ghost text.
  */
 
-import { buildCompletionPrompt, stripCodeFence, stripSpecialTokens } from "./prompt";
-import type { CompletionContext, CompletionResult } from "./types";
+import { cleanSuggestion } from "../kit/autocomplete/postprocess";
+import type { CompletionContext, CompletionResult } from "../kit/autocomplete/types";
+import { buildCompletionPrompt } from "./prompt";
 
 export type Fetcher = typeof fetch;
 
@@ -92,7 +93,7 @@ export class OllamaCompletionEngine {
     if (!response.body) throw new Error("Ollama Cloud returned an empty completion stream");
     const text = await readContentStream(response.body, requestSignal);
     // Special tokens first so a fence opening behind an echoed token normalizes.
-    const clean = stripCodeFence(stripSpecialTokens(text));
+    const clean = cleanSuggestion(text, { trimLeadingNewlines: true }) ?? "";
     return { text: clean.trim() ? clean : undefined, durationMs: Date.now() - started };
   }
 }

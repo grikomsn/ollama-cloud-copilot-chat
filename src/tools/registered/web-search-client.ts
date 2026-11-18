@@ -1,5 +1,5 @@
 import { type Fetch } from "../../models/catalog";
-import { apiError } from "../../errors";
+import { httpError } from "../../kit/errors";
 import { OLLAMA_ENDPOINTS, ollamaHeaders } from "../../transport/protocol";
 import { searchCacheKey, type WebResultCache } from "./web-cache";
 
@@ -70,7 +70,7 @@ export async function searchOllamaWeb(
     body: JSON.stringify({ query, max_results: maxResults }),
     signal,
   });
-  if (!response.ok) throw await apiError("Ollama web search failed", response);
+  if (!response.ok) throw await httpError("Ollama web search failed", response);
 
   const parsed = parseSearchResponse(await response.json());
   // Search failures are never cached: a fixed key or an expired rate-limit
