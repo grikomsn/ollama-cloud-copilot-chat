@@ -1,4 +1,4 @@
-import { apiError } from "../errors";
+import { httpError } from "../kit/errors";
 import { OLLAMA_ENDPOINTS, ollamaHeaders } from "../transport/protocol";
 import {
   ModelsDevMetadata,
@@ -141,7 +141,7 @@ export class ModelCatalog {
   async refresh(apiKey: string, signal?: AbortSignal): Promise<CloudModel[]> {
     const headers = ollamaHeaders(apiKey);
     const response = await this.fetchImpl(OLLAMA_ENDPOINTS.models, { headers, signal });
-    if (!response.ok) throw await apiError("Unable to list Ollama Cloud models", response);
+    if (!response.ok) throw await httpError("Unable to list Ollama Cloud models", response);
     const payload = await response.json() as TagsPayload;
     const ids = unique((payload.models ?? []).flatMap((entry) => {
       const value = typeof entry.name === "string"

@@ -27,7 +27,7 @@ export function reportResponseEvent(
   }));
   if (event.thinking) {
     const ThinkingPart = thinkingPartConstructor();
-    if (ThinkingPart) progress.report(new ThinkingPart(event.thinking));
+    if (ThinkingPart) progress.report(new ThinkingPart(event.thinking, thinkingSegmentId(state)));
   }
   if (transition.closeThinking) closeThinking(progress, state);
   if (event.text) progress.report(new vscode.LanguageModelTextPart(event.text));
@@ -47,7 +47,7 @@ export function closeThinking(
 ): void {
   if (!state.thinkingOpen) return;
   const ThinkingPart = thinkingPartConstructor();
-  if (ThinkingPart) progress.report(new ThinkingPart("", "", { vscode_reasoning_done: true }));
+  if (ThinkingPart) progress.report(new ThinkingPart("", thinkingSegmentId(state), { vscode_reasoning_done: true }));
   state.thinkingOpen = false;
 }
 
@@ -55,4 +55,9 @@ function thinkingPartConstructor(): typeof vscode.LanguageModelThinkingPart | un
   return (vscode as unknown as {
     LanguageModelThinkingPart?: typeof vscode.LanguageModelThinkingPart;
   }).LanguageModelThinkingPart;
+}
+
+/** Stable per-request segment id: the renderer only re-stamps falsy ids, which splits one segment. */
+function thinkingSegmentId(state: ResponseStreamState): string {
+  return `ollama-thinking-${state.requestId}`;
 }

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { costCategory, modelPricingFields, ollamaModelCost } from "./pricing";
+import { ollamaModelCost } from "./pricing";
+import { costCategory, modelPricingFields } from "../kit/pricing";
 
 test("maps published Ollama Cloud rates for hosted model ids", () => {
   assert.deepEqual(ollamaModelCost("glm-5.3"), { input: 1.4, cacheRead: 0.26, output: 4.4 });

@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { registerInlineCompletions } from "./autocomplete";
-import { NativeEntries } from "./auth/auth";
+import { Credentials } from "./kit/credentials";
 import { OllamaCloudProvider } from "./provider";
 import { OLLAMA_WEB_SEARCH_TOOL_NAME, OllamaWebSearchTool } from "./tools/registered/web-search";
 import { OLLAMA_WEB_FETCH_TOOL_NAME, OllamaWebFetchTool } from "./tools/registered/web-fetch";
@@ -28,7 +28,7 @@ export function activate(
   context: vscode.ExtensionContext,
 ): OllamaCloudExtensionApi | undefined {
   const output = vscode.window.createOutputChannel("Ollama Cloud");
-  const entries = new NativeEntries();
+  const entries = new Credentials();
   const userAgent = `ollama-cloud-copilot-chat/${context.extension.packageJSON.version} VSCode/${vscode.version}`;
   const storedUsage = context.globalState.get<Readonly<Record<string, OllamaUsageSnapshot>>>(USAGE_STATE_KEY)
     ?? {};

@@ -10,8 +10,8 @@
 
 import * as vscode from "vscode";
 import { OllamaCompletionEngine } from "./engine";
-import { OllamaCloudInlineCompletionProvider } from "./provider";
-import type { CompletionContext, CompletionEngine, CompletionResult } from "./types";
+import { InlineCompletionProvider } from "../kit/autocomplete/provider";
+import type { CompletionContext, CompletionEngine, CompletionResult } from "../kit/autocomplete/types";
 import {
   clampNumber,
   CONFIG_SECTION,
@@ -71,7 +71,7 @@ export function registerInlineCompletions(context: vscode.ExtensionContext, deps
     },
   };
 
-  const provider = new OllamaCloudInlineCompletionProvider({
+  const provider = new InlineCompletionProvider({
     engine,
     isEnabled: () => readSetting(INLINE_SUGGESTIONS_SETTING, false),
     resolveModelId: () => readSetting(INLINE_SUGGESTIONS_MODEL_SETTING, DEFAULT_INLINE_MODEL),

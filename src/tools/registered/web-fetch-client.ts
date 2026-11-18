@@ -1,5 +1,5 @@
 import { type Fetch } from "../../models/catalog";
-import { apiError } from "../../errors";
+import { httpError } from "../../kit/errors";
 import { OLLAMA_ENDPOINTS, ollamaHeaders } from "../../transport/protocol";
 import type { WebResultCache } from "./web-cache";
 
@@ -61,7 +61,7 @@ export async function fetchOllamaWeb(
     signal,
   });
   if (!response.ok) {
-    const detail = await apiError("Ollama web fetch failed", response);
+    const detail = await httpError("Ollama web fetch failed", response);
     // Negative cache only durable page properties: auth (401/403), rate
     // limits (429), server (5xx), and transport failures are never cached so
     // a fixed key or a transient blip lets the next retry through.

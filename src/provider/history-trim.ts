@@ -1,24 +1,10 @@
 /** Token estimation and oldest-turn trimming for opted-in context caps. */
 
+import { dropOldestUnits, IMAGE_TOKEN_ESTIMATE, textTokens, unitStartsBy, type HistoryTrimResult as KitTrimResult } from "../kit/history-trim";
 import type { OllamaMessage } from "./messages";
 
-/** Result of trimming a request message list against a context cap. */
-export interface HistoryTrimResult {
-  readonly items: readonly OllamaMessage[];
-  readonly removedItems: number;
-  readonly estimatedTokens: number;
-}
-
-/** Fixed estimate per image, whose base64 payload is not token-shaped. */
-const IMAGE_TOKEN_ESTIMATE = 1024;
-/** Matches the extension's chars-per-token counting heuristic. */
-const CHARS_PER_TOKEN = 4;
-
-interface ItemUnit {
-  readonly start: number;
-  readonly end: number;
-  readonly tokens: number;
-}
+/** Result of trimming converted Ollama messages against a context cap. */
+export type HistoryTrimResult = KitTrimResult<OllamaMessage>;
 
 /**
  * Estimates the token weight of one converted Ollama message. Text and
@@ -46,61 +32,12 @@ export function estimateMessageTokens(message: OllamaMessage): number {
  * ```
  */
 export function trimHistoryToFit(messages: readonly OllamaMessage[], budgetTokens: number): HistoryTrimResult {
-  const itemTokens = messages.map((message) => estimateMessageTokens(message));
-  const units = buildItemUnits(messages, itemTokens);
-  const total = units.reduce((sum, unit) => sum + unit.tokens, 0);
-  if (budgetTokens <= 0 || units.length < 3 || total <= budgetTokens) {
-    return { items: messages, removedItems: 0, estimatedTokens: total };
-  }
-  // Drop the smallest prefix of middle units that fits, keeping the newest history.
-  let droppedTokens = 0;
-  let dropUpToUnit = 1;
-  for (let unit = 1; unit <= units.length - 2; unit++) {
-    droppedTokens += units[unit].tokens;
-    dropUpToUnit = unit;
-    if (total - droppedTokens <= budgetTokens) break;
-  }
-  const dropStart = units[1].start;
-  const dropEnd = units[dropUpToUnit].end;
-  return {
-    items: [...messages.slice(0, dropStart), ...messages.slice(dropEnd + 1)],
-    removedItems: dropEnd - dropStart + 1,
-    estimatedTokens: total - droppedTokens,
-  };
-}
-
-/** Groups messages into turn units bounded by user messages with settled tool calls. */
-function buildItemUnits(messages: readonly OllamaMessage[], itemTokens: readonly number[]): ItemUnit[] {
-  const units: ItemUnit[] = [];
-  let start = 0;
   // Ollama tool results carry a tool_name instead of a call id, so pending
   // calls are tracked as a multiset of names.
-  const pendingNames: string[] = [];
-  for (let index = 0; index < messages.length; index++) {
-    const message = messages[index];
-    const boundary = index > start && pendingNames.length === 0 && message.role === "user";
-    if (boundary) {
-      units.push({
-        start,
-        end: index - 1,
-        tokens: itemTokens.slice(start, index).reduce((sum, tokens) => sum + tokens, 0),
-      });
-      start = index;
-    }
-    for (const call of message.tool_calls ?? []) pendingNames.push(call.function.name);
-    if (message.role === "tool" && message.tool_name) {
-      const settled = pendingNames.indexOf(message.tool_name);
-      if (settled >= 0) pendingNames.splice(settled, 1);
-    }
-  }
-  units.push({
-    start,
-    end: messages.length - 1,
-    tokens: itemTokens.slice(start).reduce((sum, tokens) => sum + tokens, 0),
+  const starts = unitStartsBy(messages, (message) => message.role === "user", (message, pending) => {
+    for (const call of message.tool_calls ?? []) pending.open(call.function.name);
+    if (message.role === "tool" && message.tool_name) pending.settle(message.tool_name);
   });
-  return units;
+  return dropOldestUnits(messages, messages.map(estimateMessageTokens), starts, budgetTokens);
 }
 
-function textTokens(text: string): number {
-  return Math.ceil(text.length / CHARS_PER_TOKEN);
-}

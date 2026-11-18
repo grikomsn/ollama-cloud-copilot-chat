@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { fallbackModels } from "./catalog";
-import { buildModelConfigurationSchema, contextSizeOptions, resolveThinkValue } from "./options";
+import { buildModelConfigurationSchema, resolveThinkValue } from "./options";
+import { contextSizeOptions } from "../kit/context-size";
 
 // VS Code 1.141: AgentHostByokLmHandler reads this exact schema key;
 // CopilotAgent then filters it through common/reasoningEffort.ts.

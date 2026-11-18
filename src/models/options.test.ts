@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { fallbackModels, type CloudModel } from "./catalog";
-import { buildModelConfigurationSchema, buildThinkingSchema, contextSizeOptions, resolveContextCap, resolveContextSize, resolveThinkValue } from "./options";
+import { buildModelConfigurationSchema, buildThinkingSchema, resolveThinkValue } from "./options";
+import { contextSizeOptions, resolveContextCap, resolveContextSize } from "../kit/context-size";
 
 function model(id: string, family: string, thinking = true): CloudModel {
   return {

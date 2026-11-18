@@ -39,6 +39,20 @@ loads authenticated request activity or quota windows, and checks native respons
    subscription usage picker.
 10. Inspect diagnostics and logs for accidental sensitive output.
 
+## Shared kit
+
+`src/kit/` is the [copilot-chat-kit](https://github.com/grikomsn/copilot-chat-kit)
+git submodule shared by every Copilot Chat provider extension. It compiles and
+tests with this repository (`npm test` runs its colocated tests too), so a fresh
+clone needs `git clone --recurse-submodules` or `git submodule update --init`.
+
+- Change shared behavior in the kit repository, push it, then run
+  `git submodule update --remote src/kit` here and commit the bump.
+- Keep provider quirks (auth, dialect extensions, cost tables, usage domains)
+  in this repository; configure kit modules through their options instead of
+  editing them in place.
+- Dependabot proposes kit bumps weekly; CI checks out submodules.
+
 ## Release
 
 Add a Changeset for user-visible work:
