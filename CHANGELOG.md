@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.1.9
+
+### Patch Changes
+
+- 695787c: Keep thinking in one bubble and retry transient failures
+  
+  - Thinking parts now carry a stable request-scoped segment id, so streamed reasoning stays in one bubble instead of splitting per delta.
+  - Transient 429/502/503/504 and connection failures before streaming are retried with bounded backoff, and request bodies no longer carry lone UTF-16 surrogates.
+  - The response reader always releases and cancels the stream on failure, and the picker shows cached-input prices.
+  
+  Shared provider plumbing now comes from the copilot-chat-kit submodule, so fixes land in every Copilot Chat provider extension at once.
+- a791332: Resync the Ollama Cloud model catalog with the hosted lineup as of 2026-11-25. Hy4, Inkling 2 Small, Kimi K3.1 Pro, and the MiMo V2.6 Flash and Pro pair join the picker with live-verified context windows, capabilities, thinking controls, and published pricing. MiniMax M2.7, Mistral Large 3 675B, and Nemotron 3 Nano 30B are removed following their 2026-11-09 retirement, and the persisted catalog cache key is bumped so stale snapshots no longer list them.
+
 ## 2.1.8
 
 ### Patch Changes
