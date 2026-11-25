@@ -41,4 +41,3 @@ export const PUBLISHED_MODEL_COSTS: Readonly<Record<string, ModelCost>> = {
 export function ollamaModelCost(id: string): ModelCost | undefined {
   return PUBLISHED_MODEL_COSTS[id] ?? PUBLISHED_MODEL_COSTS[id.split(":")[0]];
 }
-
