@@ -5,9 +5,10 @@ import {
   type ModelsDevModelMetadata,
 } from "./metadata";
 
-// v5 drops the models retiring on 2026-09-25 while continuing to exclude
+// v6 removes the models that retired on 2026-11-09 (MiniMax M2.7,
+// Nemotron 3 Nano 30B, Mistral Large 3 675B) while continuing to exclude
 // retired model IDs from older caches.
-export const CATALOG_CACHE_KEY = "ollamaCloudCopilot.modelCatalog.v5";
+export const CATALOG_CACHE_KEY = "ollamaCloudCopilot.modelCatalog.v6";
 // Fallback label for models without published Ollama pricing rates.
 export const TOKEN_PRICING = "Metered against Ollama Cloud plan credits · no published rate";
 
@@ -64,6 +65,16 @@ export type Fetch = (input: string | URL | Request, init?: RequestInit) => Promi
 // This snapshot keeps the picker useful before authentication and records
 // output ceilings that /api/show does not currently publish.
 const SNAPSHOT: readonly SnapshotModel[] = [
+  // hy4 is Hunyuan's 4th-generation multimodal model (live verified
+  // 2026-11-25): /api/show reports a 1M context, models.dev publishes the
+  // 65536 output ceiling, and live chat probes verified vision, thinking
+  // (trace suppressed by think:false), and tool capabilities.
+  { id: "hy4", contextLength: 1048576, maxOutputTokens: 65536, capabilities: "vision thinking completion tools" },
+  // inkling-2-small is the first hosted Inkling model (live verified
+  // 2026-11-25): /api/show reports a 1M context, a live limit probe rejected
+  // output above 262144, and chat probes verified vision, thinking
+  // (trace suppressed by think:false), and tool capabilities.
+  { id: "inkling-2-small", contextLength: 1048576, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
   // minimax-m3.1-flash is the newly hosted M3.1-generation flash variant.
   // The context matches live /api/show and models.dev; the output ceiling
   // comes from models.dev, and /api/show plus a live chat probe verified
@@ -85,6 +96,16 @@ const SNAPSHOT: readonly SnapshotModel[] = [
   // ceiling from a live limit-probe rejection (matches the base row).
   { id: "deepseek-v4.1-flash:1017", contextLength: 1048576, maxOutputTokens: 393216, capabilities: "vision thinking completion tools" },
   { id: "kimi-k3", contextLength: 1048576, maxOutputTokens: 524288, capabilities: "vision thinking completion tools" },
+  // kimi-k3.1-pro is the 2026-11 K3.1 Pro refresh. models.dev publishes the
+  // 1048576 output ceiling; live chat probes (2026-11-25) verified vision,
+  // thinking (trace suppressed by think:false), and tool capabilities.
+  { id: "kimi-k3.1-pro", contextLength: 1048576, maxOutputTokens: 1048576, capabilities: "vision thinking completion tools" },
+  // mimo-v2.6-flash and mimo-v2.6-pro are Xiaomi's hosted MiMo V2.6 models
+  // (live verified 2026-11-25): /api/show reports a 1M context, a live limit
+  // probe rejected output above 262144 on both, and chat probes verified
+  // vision, thinking (trace suppressed by think:false), and tools.
+  { id: "mimo-v2.6-flash", contextLength: 1048576, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
+  { id: "mimo-v2.6-pro", contextLength: 1048576, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
   { id: "kimi-k2.7-code", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
   { id: "kimi-k2.6", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
   { id: "glm-5.2", contextLength: 1048576, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
@@ -92,14 +113,8 @@ const SNAPSHOT: readonly SnapshotModel[] = [
   { id: "nemotron-3-ultra", contextLength: 262144, maxOutputTokens: 65536, capabilities: "thinking completion tools" },
   { id: "deepseek-v4-pro:0813", contextLength: 1048576, maxOutputTokens: 65536, capabilities: "thinking completion tools" },
   { id: "gemma4:31b", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
-  // minimax-m2.7, mistral-large-3:675b, and nemotron-3-nano:30b retire on
-  // 2026-11-09 per Ollama's usage settings; they still serve until then, so
-  // they stay listed and the picker tooltip announces the retirement.
-  { id: "minimax-m2.7", contextLength: 196608, maxOutputTokens: 131072, capabilities: "thinking completion tools", retirementDate: "2026-11-09" },
   { id: "nemotron-3-super", contextLength: 262144, maxOutputTokens: 65536, capabilities: "thinking completion tools" },
-  { id: "nemotron-3-nano:30b", contextLength: 262144, maxOutputTokens: 131072, capabilities: "thinking completion tools", retirementDate: "2026-11-09" },
   { id: "mistral-large-4", contextLength: 1048576, maxOutputTokens: 262144, capabilities: "vision thinking completion tools" },
-  { id: "mistral-large-3:675b", contextLength: 262144, maxOutputTokens: 262144, capabilities: "vision completion tools", retirementDate: "2026-11-09" },
   { id: "gpt-oss:120b", contextLength: 131072, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
   { id: "gpt-oss:20b", contextLength: 131072, maxOutputTokens: 131072, capabilities: "thinking completion tools" },
 ];
@@ -239,6 +254,7 @@ export function humanizeModelId(id: string): string {
     kimi: "Kimi",
     minimax: "MiniMax",
     mistral: "Mistral",
+    mimo: "MiMo",
     nemotron: "Nemotron",
     oss: "OSS",
     pro: "Pro",

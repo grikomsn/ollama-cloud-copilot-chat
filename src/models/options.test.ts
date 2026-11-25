@@ -27,14 +27,18 @@ const EXPECTED_PROFILES = new Map<string, readonly string[]>([
   ["glm-5.3-flash", ["low", "high", "max"]],
   ["gpt-oss:20b", ["low", "medium", "high"]],
   ["gpt-oss:120b", ["low", "medium", "high"]],
+  ["hy4", ["off", "high"]],
+  ["inkling-2-small", ["off", "on"]],
   ["kimi-k2.6", ["off", "on"]],
   ["kimi-k2.7-code", ["off", "on"]],
   ["kimi-k3", ["off", "low", "high", "max"]],
+  ["kimi-k3.1-pro", ["off", "on"]],
   ["minimax-m3", ["default", "low", "medium", "high", "max"]],
   ["minimax-m3.1-flash", ["default", "low", "medium", "high", "max"]],
+  ["mimo-v2.6-flash", ["low", "medium", "high", "max"]],
+  ["mimo-v2.6-pro", ["low", "medium", "high", "max"]],
   ["muse-spark-open", ["off", "low", "medium", "high", "max"]],
   ["mistral-large-4", ["off", "on"]],
-  ["nemotron-3-nano:30b", ["off", "on"]],
   ["nemotron-3-super", ["off", "on"]],
   ["nemotron-3-ultra", ["off", "on"]],
 ]);
@@ -68,10 +72,11 @@ test("hides off for gpt-oss models in derived profiles", () => {
 });
 
 test("yields no picker for degenerate derived options", () => {
-  // minimax-m2.7 leaks a reasoning trace when thinking is disabled, so its
-  // toggle-only derivation would offer only "on" — no control at all.
-  const minimax = { ...model("minimax-m2.7", "minimax"), reasoningOptions: ["toggle"] };
-  assert.equal(buildThinkingSchema(minimax), undefined);
+  // A toggle-only derivation with off hidden would offer only "on" — no
+  // control at all. The id carries the off-null prefix (hidesOff matches the
+  // id) while dodging every family fallback so only that path applies.
+  const offNullToggle = { ...model("gpt-oss-legacy:1b", "legacy"), reasoningOptions: ["toggle"] };
+  assert.equal(buildThinkingSchema(offNullToggle), undefined);
 
   assert.equal(buildThinkingSchema({ ...model("future-empty", "future"), reasoningOptions: [] }), undefined);
   assert.equal(buildThinkingSchema({ ...model("future-junk", "future"), reasoningOptions: ["none", "default"] }), undefined);
@@ -95,17 +100,20 @@ test("unlisted tags inherit their family's verified profile", () => {
     ["glm-5.3-flash:future", ["low", "high", "max"]],
     ["glm-5.2:future", ["off", "high", "max"]],
     ["kimi-k3:future", ["off", "low", "high", "max"]],
+    ["kimi-k3.1-pro:future", ["off", "on"]],
+    ["mimo-v2.6:future", ["low", "medium", "high", "max"]],
+    ["hy4:future", ["off", "high"]],
+    ["inkling-2-small:future", ["off", "on"]],
     ["minimax-m3:future", ["default", "low", "medium", "high", "max"]],
     ["minimax-m3.1-flash:future", ["default", "low", "medium", "high", "max"]],
     ["gemma4:9b", ["off", "on"]],
-    ["nemotron-3-nano:future", ["off", "on"]],
+    ["nemotron-3-super:future", ["off", "on"]],
     ["muse-spark-open:future", ["off", "low", "medium", "high", "max"]],
     ["beam:future", ["low", "medium", "high", "max"]],
   ] as const) {
     assert.deepEqual(buildThinkingSchema(model(id, id))?.properties.reasoningEffort.enum, [...values], id);
   }
   // Families that are model-managed or unverified stay without a picker.
-  assert.equal(buildThinkingSchema(model("minimax-m2.7:future", "minimax")), undefined);
   assert.equal(buildThinkingSchema(model("future-model", "future")), undefined);
 });
 
@@ -182,9 +190,42 @@ test("MiniMax M3 defaults to high and preserves an explicit native Default choic
 });
 
 test("model-managed, unknown, and non-thinking models expose no control", () => {
-  assert.equal(resolveThinkValue(model("minimax-m2.7", "minimax"), {}), undefined);
+  assert.equal(resolveThinkValue(model("future-managed", "future"), {}), undefined);
   assert.equal(buildThinkingSchema(model("future-thinking", "future")), undefined);
   assert.equal(buildThinkingSchema(model("mistral-large-3:675b", "mistral", false)), undefined);
+});
+
+test("Hy4 exposes off and high and defaults to high", () => {
+  // Live-verified 2026-11-25: hy4 accepts think none/high and think:false
+  // suppresses the trace; models.dev publishes the same effort pair.
+  const candidate = model("hy4", "hy");
+  assert.deepEqual(buildThinkingSchema(candidate)?.properties.reasoningEffort.enum, ["off", "high"]);
+  assert.equal(resolveThinkValue(candidate, undefined), "high");
+  assert.equal(resolveThinkValue(candidate, { reasoningEffort: "off" }), false);
+  assert.equal(resolveThinkValue(candidate, { reasoningEffort: "low" }), "high");
+});
+
+test("MiMo V2.6 models expose low, medium, high, and max", () => {
+  // Live-verified 2026-11-25: both MiMo V2.6 variants accept every effort
+  // string and suppress their trace with think:false; models.dev publishes
+  // toggle-only options, so the graded profile is hand-verified.
+  for (const id of ["mimo-v2.6-flash", "mimo-v2.6-pro"]) {
+    const candidate = model(id, "mimo");
+    assert.deepEqual(buildThinkingSchema(candidate)?.properties.reasoningEffort.enum, ["low", "medium", "high", "max"], id);
+    assert.equal(resolveThinkValue(candidate, undefined), "high", id);
+    assert.equal(resolveThinkValue(candidate, { reasoningEffort: "low" }), "low", id);
+  }
+});
+
+test("Kimi K3.1 Pro and Inkling 2 Small expose On and Off", () => {
+  // Live-verified 2026-11-25: both accept every effort string, but like the
+  // other boolean models the string values did not establish ordered levels.
+  for (const id of ["kimi-k3.1-pro", "inkling-2-small"]) {
+    const candidate = model(id, "kimi");
+    assert.deepEqual(buildThinkingSchema(candidate)?.properties.reasoningEffort.enum, ["off", "on"], id);
+    assert.equal(resolveThinkValue(candidate, { reasoningEffort: "off" }), false, id);
+    assert.equal(resolveThinkValue(candidate, { reasoningEffort: "on" }), true, id);
+  }
 });
 
 test("Mistral Large 4 maps Off and On to native booleans", () => {

@@ -3,7 +3,7 @@ import type { ModelCost } from "../kit/pricing";
 export type { ModelCost } from "../kit/pricing";
 
 // Published Ollama Cloud rates from https://ollama.com/pricing, captured
-// 2026-10-30. The API does not expose pricing, so this table mirrors the
+// 2026-11-25. The API does not expose pricing, so this table mirrors the
 // pricing page: family rows cover unlisted tags, while tag-specific rows
 // (gpt-oss) apply only to the listed tags. DeepSeek V4 Pro and DeepSeek
 // V4.1 Flash publish off-peak rates as labeled rows, applying outside
@@ -22,16 +22,18 @@ export const PUBLISHED_MODEL_COSTS: Readonly<Record<string, ModelCost>> = {
   "glm-5.3-flash": { input: 0.15, cacheRead: 0.03, output: 0.5 },
   "gpt-oss:120b": { input: 0.15, cacheRead: 0.014, output: 0.6 },
   "gpt-oss:20b": { input: 0.07, cacheRead: 0.035, output: 0.3 },
+  "hy4": { input: 0.834, cacheRead: 0.042, output: 2.501 },
+  "inkling-2-small": { input: 0.3, cacheRead: 0.03, output: 1 },
   "kimi-k2.6": { input: 0.95, cacheRead: 0.16, output: 4 },
   "kimi-k2.7-code": { input: 0.95, cacheRead: 0.19, output: 4 },
   "kimi-k3": { input: 3, cacheRead: 0.3, output: 15 },
-  "minimax-m2.7": { input: 0.3, cacheRead: 0.06, output: 1.2 },
+  "kimi-k3.1-pro": { input: 2, cacheRead: 0.2, output: 10 },
+  "mimo-v2.6-flash": { input: 0.14, cacheRead: 0.0028, output: 0.28 },
+  "mimo-v2.6-pro": { input: 0.435, cacheRead: 0.0036, output: 0.87 },
   "minimax-m3": { input: 0.6, cacheRead: 0.12, output: 2.4 },
   "minimax-m3.1-flash": { input: 0.15, cacheRead: 0.015, output: 0.6 },
   "muse-spark-open": { input: 1.25, cacheRead: 0.15, output: 4.25 },
-  "mistral-large-3": { input: 0.5, output: 1.5 },
   "mistral-large-4": { input: 0.7, cacheRead: 0.07, output: 2.1 },
-  "nemotron-3-nano": { input: 0.06, output: 0.24 },
   "nemotron-3-super": { input: 0.015, cacheRead: 0.015, output: 0.6 },
   "nemotron-3-ultra": { input: 0.1, cacheRead: 0.1, output: 3 },
 };

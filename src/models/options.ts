@@ -57,13 +57,22 @@ const BEAM_PROFILE: ThinkingProfile = {
   defaultValue: "high",
   title: "Thinking Effort",
 };
+const HY4_PROFILE: ThinkingProfile = {
+  values: ["off", "high"],
+  defaultValue: "high",
+  title: "Thinking Effort",
+};
+const MIMO_V26_PROFILE: ThinkingProfile = {
+  values: ["low", "medium", "high", "max"],
+  defaultValue: "high",
+  title: "Thinking Effort",
+};
 
 /**
  * Resolves a thinking profile for ids Ollama Cloud has not snapshotted yet.
  * Exact ids win; otherwise the family (the id before the first `:`) inherits
  * the profile verified for that family. Families whose behavior is not uniform
- * — MiniMax M2.7 stays model-managed because `think: false` still returns a
- * trace — are deliberately absent, so an unknown tag of those families gets
+ * stay model-managed, so an unknown tag of those families gets
  * no picker rather than a wrong one.
  */
 function thinkingProfile(id: string): ThinkingProfile | undefined {
@@ -78,10 +87,13 @@ function thinkingProfile(id: string): ThinkingProfile | undefined {
   if (family === "minimax-m3" || family === "minimax-m3.1-flash") return MINIMAX_M3_PROFILE;
   if (family === "muse-spark-open") return MUSE_SPARK_PROFILE;
   if (family === "beam") return BEAM_PROFILE;
+  if (family === "hy4") return HY4_PROFILE;
+  if (family === "mimo-v2.6") return MIMO_V26_PROFILE;
   if (family === "mistral-large-4") return BOOLEAN_PROFILE;
   if (
     family === "gemma4" || family === "kimi-k2.6" || family === "kimi-k2.7-code"
-    || family === "nemotron-3-nano" || family === "nemotron-3-super" || family === "nemotron-3-ultra"
+    || family === "kimi-k3.1-pro" || family === "nemotron-3-super" || family === "nemotron-3-ultra"
+    || family === "inkling-2-small"
   ) return BOOLEAN_PROFILE;
   return undefined;
 }
@@ -95,15 +107,19 @@ const THINKING_PROFILES = new Map<string, ThinkingProfile>([
   ["glm-5.3-flash", GLM_53_PROFILE],
   ["gpt-oss:20b", GPT_OSS_PROFILE],
   ["gpt-oss:120b", GPT_OSS_PROFILE],
+  ["hy4", HY4_PROFILE],
+  ["inkling-2-small", BOOLEAN_PROFILE],
   ["kimi-k2.6", BOOLEAN_PROFILE],
   ["kimi-k2.7-code", BOOLEAN_PROFILE],
   ["kimi-k3", KIMI_K3_PROFILE],
+  ["kimi-k3.1-pro", BOOLEAN_PROFILE],
+  ["mimo-v2.6-flash", MIMO_V26_PROFILE],
+  ["mimo-v2.6-pro", MIMO_V26_PROFILE],
   ["minimax-m3", MINIMAX_M3_PROFILE],
   ["minimax-m3.1-flash", MINIMAX_M3_PROFILE],
   ["muse-spark-open", MUSE_SPARK_PROFILE],
   ["beam", BEAM_PROFILE],
   ["mistral-large-4", BOOLEAN_PROFILE],
-  ["nemotron-3-nano:30b", BOOLEAN_PROFILE],
   ["nemotron-3-super", BOOLEAN_PROFILE],
   ["nemotron-3-ultra", BOOLEAN_PROFILE],
 ]);
@@ -113,7 +129,7 @@ const THINKING_PROFILES = new Map<string, ThinkingProfile>([
  * live probes (mirroring pi-ollama-cloud's OFF_NULL table): derived profiles
  * hide the `off` choice for these families/ids so the model stays model-managed.
  */
-const OFF_NULL_EXACT = new Set(["minimax-m2.7", "beam"]);
+const OFF_NULL_EXACT = new Set(["beam"]);
 const OFF_NULL_FAMILIES = ["gpt-oss"];
 
 function hidesOff(id: string): boolean {

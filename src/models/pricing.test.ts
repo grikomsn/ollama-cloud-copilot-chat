@@ -15,18 +15,17 @@ test("maps published Ollama Cloud rates for hosted model ids", () => {
   assert.deepEqual(ollamaModelCost("kimi-k2.6"), { input: 0.95, cacheRead: 0.16, output: 4 });
   assert.deepEqual(ollamaModelCost("minimax-m3"), { input: 0.6, cacheRead: 0.12, output: 2.4 });
   assert.deepEqual(ollamaModelCost("minimax-m3.1-flash"), { input: 0.15, cacheRead: 0.015, output: 0.6 });
-  assert.deepEqual(ollamaModelCost("minimax-m2.7"), { input: 0.3, cacheRead: 0.06, output: 1.2 });
   assert.deepEqual(ollamaModelCost("nemotron-3-super"), { input: 0.015, cacheRead: 0.015, output: 0.6 });
   assert.deepEqual(ollamaModelCost("nemotron-3-ultra"), { input: 0.1, cacheRead: 0.1, output: 3 });
   assert.deepEqual(ollamaModelCost("gpt-oss:120b"), { input: 0.15, cacheRead: 0.014, output: 0.6 });
   assert.deepEqual(ollamaModelCost("gpt-oss:20b"), { input: 0.07, cacheRead: 0.035, output: 0.3 });
   assert.deepEqual(ollamaModelCost("mistral-large-4"), { input: 0.7, cacheRead: 0.07, output: 2.1 });
   assert.deepEqual(ollamaModelCost("muse-spark-open"), { input: 1.25, cacheRead: 0.15, output: 4.25 });
-});
-
-test("omits cache pricing where Ollama publishes none", () => {
-  assert.deepEqual(ollamaModelCost("mistral-large-3:675b"), { input: 0.5, output: 1.5 });
-  assert.deepEqual(ollamaModelCost("nemotron-3-nano:30b"), { input: 0.06, output: 0.24 });
+  assert.deepEqual(ollamaModelCost("hy4"), { input: 0.834, cacheRead: 0.042, output: 2.501 });
+  assert.deepEqual(ollamaModelCost("inkling-2-small"), { input: 0.3, cacheRead: 0.03, output: 1 });
+  assert.deepEqual(ollamaModelCost("kimi-k3.1-pro"), { input: 2, cacheRead: 0.2, output: 10 });
+  assert.deepEqual(ollamaModelCost("mimo-v2.6-flash"), { input: 0.14, cacheRead: 0.0028, output: 0.28 });
+  assert.deepEqual(ollamaModelCost("mimo-v2.6-pro"), { input: 0.435, cacheRead: 0.0036, output: 0.87 });
 });
 
 test("resolves family rates for unlisted tags and never guesses tag rates", () => {
@@ -44,7 +43,7 @@ test("resolves family rates for unlisted tags and never guesses tag rates", () =
 });
 
 test("does not retain pricing for retired model ids", () => {
-  for (const id of ["deepseek-v4-flash:0731", "glm-5.1", "qwen3.5:397b"]) {
+  for (const id of ["deepseek-v4-flash:0731", "glm-5.1", "qwen3.5:397b", "minimax-m2.7", "mistral-large-3:675b", "nemotron-3-nano:30b"]) {
     assert.equal(ollamaModelCost(id), undefined, id);
   }
 });
