@@ -23,7 +23,7 @@ class MemoryCache implements CatalogCache {
 
 test("fallback catalog includes current cloud models and rich capabilities", () => {
   const models = fallbackModels();
-  assert.equal(models.length, 22);
+  assert.equal(models.length, 24);
   const muse = models.find((model) => model.id === "muse-spark-open");
   assert.equal(muse?.contextLength, 1048576);
   assert.equal(muse?.maxOutputTokens, 524288);
@@ -77,6 +77,11 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
   // clef:27b stays unlisted: it is a decision model that only serves the
   // /v1/systemone endpoint, so /api/chat requests receive HTTP 400.
   assert.equal(models.some((model) => model.id === "clef:27b"), false);
+  // MiniMax M2.7, Nemotron 3 Nano 30B, and Mistral Large 3 675B retired on
+  // 2026-11-09 and no longer appear in /api/tags or /api/show.
+  assert.equal(models.some((model) => model.id === "minimax-m2.7"), false);
+  assert.equal(models.some((model) => model.id === "nemotron-3-nano:30b"), false);
+  assert.equal(models.some((model) => model.id === "mistral-large-3:675b"), false);
   assert.equal(models.some((model) => model.id === "deepseek-v4-flash:preview"), false);
   assert.equal(models.some((model) => model.id === "deepseek-v4-flash"), false);
   assert.equal(models.some((model) => model.id === "deepseek-v4-flash:0731"), false);
@@ -117,7 +122,7 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
     toolCalling: true,
     thinking: true,
   });
-  const nano = models.find((model) => model.id === "nemotron-3-nano:30b");
+  const nano = models.find((model) => model.id === "nemotron-3-super");
   assert.equal(nano?.contextLength, 262144);
   const gemma = models.find((model) => model.id === "gemma4:31b");
   assert.equal(gemma?.contextLength, 262144);
@@ -127,14 +132,34 @@ test("fallback catalog includes current cloud models and rich capabilities", () 
     toolCalling: true,
     thinking: true,
   });
+  const hy4 = models.find((model) => model.id === "hy4");
+  assert.equal(hy4?.contextLength, 1048576);
+  assert.equal(hy4?.maxOutputTokens, 65536);
+  assert.deepEqual(hy4?.capabilities, {
+    imageInput: true,
+    toolCalling: true,
+    thinking: true,
+  });
+  const inkling = models.find((model) => model.id === "inkling-2-small");
+  assert.equal(inkling?.contextLength, 1048576);
+  assert.equal(inkling?.maxOutputTokens, 262144);
+  const kimiK31 = models.find((model) => model.id === "kimi-k3.1-pro");
+  assert.equal(kimiK31?.contextLength, 1048576);
+  assert.equal(kimiK31?.maxOutputTokens, 1048576);
+  const mimoFlash = models.find((model) => model.id === "mimo-v2.6-flash");
+  assert.equal(mimoFlash?.contextLength, 1048576);
+  assert.equal(mimoFlash?.maxOutputTokens, 262144);
+  const mimoPro = models.find((model) => model.id === "mimo-v2.6-pro");
+  assert.equal(mimoPro?.contextLength, 1048576);
+  assert.equal(mimoPro?.maxOutputTokens, 262144);
+  assert.equal(humanizeModelId("mimo-v2.6-flash"), "MiMo V2.6 Flash");
 });
 
-test("announces the 2026-11-09 retirement on still-hosted models", () => {
+test("models retired on 2026-11-09 are absent from the fallback catalog", () => {
   for (const id of ["minimax-m2.7", "mistral-large-3:675b", "nemotron-3-nano:30b"]) {
-    const model = fallbackModels().find((entry) => entry.id === id);
-    assert.equal(model?.retirementDate, "2026-11-09", id);
+    assert.equal(fallbackModels().find((entry) => entry.id === id), undefined, id);
   }
-  // Everything else stays unmarked.
+  // Live entries stay unmarked.
   assert.equal(fallbackModels().find((entry) => entry.id === "mistral-large-4")?.retirementDate, undefined);
 });
 
@@ -219,6 +244,25 @@ test("ignores v4 snapshots containing models retired on 2026-09-25", () => {
   for (const id of retired) assert.equal(catalog.get(id), undefined, id);
   assert.notEqual(catalog.get("deepseek-v4.1-flash"), undefined);
   assert.notEqual(catalog.get("glm-5.3"), undefined);
+});
+
+test("ignores v5 snapshots containing models retired on 2026-11-09", () => {
+  const cache = new MemoryCache();
+  const retired = ["minimax-m2.7", "mistral-large-3:675b", "nemotron-3-nano:30b"];
+  cache.values.set("ollamaCloudCopilot.modelCatalog.v5", retired.map((id) => ({
+    id,
+    name: id,
+    family: "retired",
+    version: "1",
+    contextLength: 262144,
+    maxOutputTokens: 65536,
+    capabilities: { imageInput: false, toolCalling: true, thinking: true },
+  })));
+
+  const catalog = new ModelCatalog(cache);
+  for (const id of retired) assert.equal(catalog.get(id), undefined, id);
+  assert.notEqual(catalog.get("mistral-large-4"), undefined);
+  assert.notEqual(catalog.get("hy4"), undefined);
 });
 
 test("show metadata overrides context and capabilities", () => {
